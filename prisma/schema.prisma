@@ -1,0 +1,190 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Store {
+  id                    String    @id @default("store_pairs_clothing")
+  name                  String    @default("Pairs Knife & Sword Co.")
+  legalName             String    @default("Pairs the Blades Official Pvt Ltd")
+  handle                String    @unique @default("pairs-blades")
+  logoText              String    @default("PAIRS")
+  supportEmail          String    @default("support@pairstheblades.com")
+  supportPhone          String    @default("+92 300 1234567")
+  supportCity           String    @default("Gujranwala, Pakistan")
+  contactAddress        String    @default("Punjab College, Gujranwala, Pakistan")
+  
+  // Announcement Bar
+  enableAnnouncement    Boolean   @default(true)
+  announcement          String    @default("Nationwide Cash on Delivery across Pakistan. Handcrafted Damascus blades, chef knives, and swords live now!")
+  
+  // Hero Section Customizer
+  heroTag               String    @default("Master Forged / Live Now")
+  heroTitle             String    @default("Precision Steel")
+  heroDescription       String    @default("Handcrafted Damascus blades, chef knives, and swords with unrivaled edge retention and nationwide cash on delivery.")
+  heroImageUrl          String    @default("https://cdn.shopify.com/s/files/1/0971/9447/5817/files/IMG_7003.png?v=1794397107&width=3840")
+  heroCtaText           String    @default("Explore Blades")
+  heroCtaLink           String    @default("#products")
+  
+  // Value Propositions / Trust Badges
+  valueProp1           String    @default("Free Shipping Over Rs. 5,000")
+  valueProp2           String    @default("Cash On Delivery Nationwide")
+  valueProp3           String    @default("Hand-Inspected Edge & Blade Warranty")
+
+  // Catalog Section Heading
+  catalogTitle          String    @default("_FEATURED BLADES >>>_")
+  catalogSubtitle       String    @default("Limited production batch forged from premium high-carbon Damascus steel.")
+
+  // Community Section
+  communityTitle        String    @default("_Join VIP Blade Club !_")
+  communitySubtitle     String    @default("Get early access to exclusive Damascus drops, custom forged pieces, and collector discounts.")
+  communityLink         String    @default("https://whatsapp.com/channel/0029Vb8BubO5K3zVoOAX9B0G")
+  communityCtaText      String    @default("Access")
+
+  // Social Links & Granular Platform Toggles
+  enableSocialLinks     Boolean   @default(true)
+  enableInstagram       Boolean   @default(true)
+  enableTiktok          Boolean   @default(true)
+  enableYoutube         Boolean   @default(true)
+  enableWhatsApp        Boolean   @default(true)
+  enableFloatingWhatsApp Boolean  @default(true)
+  whatsappNumber        String    @default("+923001234567")
+  whatsappDefaultMsg    String    @default("Hi Pairs Cutlery, I would like to inquire about handcrafted blades.")
+  instagramUrl          String    @default("")
+  tiktokUrl             String    @default("")
+  youtubeUrl            String    @default("")
+
+  // Currency & Shipping
+  currency              String    @default("PKR")
+  currencySymbol        String    @default("Rs.")
+  freeShippingThreshold Float     @default(5000.0)
+  shippingFee           Float     @default(250.0)
+  estimatedDeliveryDays String    @default("2-4 Business Days")
+
+  // Payment Gateways
+  enableCod             Boolean   @default(true)
+  enableCard            Boolean   @default(true)
+  codNotice             String    @default("Cash on Delivery is available nationwide across Pakistan.")
+  enableBankTransfer    Boolean   @default(true)
+  bankName              String    @default("Meezan Bank Ltd")
+  bankAccountTitle      String    @default("PAIRS CLOTHING PVT LTD")
+  bankAccountNumber     String    @default("01020304050607")
+  bankIban              String    @default("PK36MEZN0001020304050607")
+  bankBranch            String    @default("Main Boulevard Gulberg, Lahore")
+  bankInstructions      String    @default("Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to +92 321 4455667")
+  cardGatewayName       String    @default("Visa / Mastercard Secure Gateway")
+  cardInstructions      String    @default("Instant checkout via 3D Secure card processing sandbox.")
+  cardMode              String    @default("SANDBOX")
+
+  // Store Policies & Custom Content
+  policyRefund          String?
+  policyShipping        String?
+  policyTerms           String?
+  policyPrivacy         String?
+  policyContact         String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  products              Product[]
+  orders                Order[]
+  discounts             Discount[]
+}
+
+model Discount {
+  id           String    @id @default(cuid())
+  storeId      String
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  code         String    @unique
+  type         String    @default("PERCENTAGE") // PERCENTAGE, FIXED_AMOUNT
+  value        Float     // e.g. 10 (%) or 500 (PKR)
+  minSubtotal  Float     @default(0.0)
+  status       String    @default("ACTIVE") // ACTIVE, INACTIVE
+  usageCount   Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Product {
+  id             String           @id @default(cuid())
+  storeId        String
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title          String
+  handle         String           @unique
+  description    String
+  bodyHtml       String?
+  price          Float
+  compareAtPrice Float?
+  featuredImage  String
+  images         String           // JSON string of image URLs
+  status         String           @default("ACTIVE") // ACTIVE, DRAFT
+  tags           String           @default("[\"Denims\", \"Bootcut\"]")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  variants       ProductVariant[]
+  orderItems     OrderItem[]
+}
+
+model ProductVariant {
+  id                String      @id @default(cuid())
+  productId         String
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title             String      // e.g. "28", "30", "32", "34", "36"
+  option1           String      // Waist size: "28", "30", "32", "34", "36"
+  price             Float
+  compareAtPrice    Float?
+  inventoryQuantity Int         @default(15)
+  sku               String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  orderItems        OrderItem[]
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  storeId           String
+  store             Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderNumber       Int         @unique
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  shippingAddress   String
+  city              String
+  province          String      @default("Punjab")
+  postalCode        String?
+  subtotalPrice     Float
+  shippingPrice     Float       @default(0.0)
+  totalPrice        Float
+  paymentMethod     String      @default("COD") // COD, CARD
+  financialStatus   String      @default("PENDING") // PENDING, PAID
+  fulfillmentStatus String      @default("UNFULFILLED") // UNFULFILLED, FULFILLED
+  trackingCompany   String?     // TCS, Trax, Call Courier, Leopards
+  trackingNumber    String?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id           String          @id @default(cuid())
+  orderId      String
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String?
+  product      Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId    String?
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  title        String
+  variantTitle String?
+  price        Float
+  quantity     Int             @default(1)
+  image        String?
+}
