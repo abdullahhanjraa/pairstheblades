@@ -134,14 +134,7 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
           )}
 
           {/* Main Stage Image - 100% Uncropped Showcase */}
-          <div className="relative aspect-[4/3] sm:aspect-[16/11] w-full bg-neutral-900/5 border border-neutral-200/80 rounded-xs overflow-hidden flex items-center justify-center group shadow-2xs">
-            {/* Ambient subtle glow matching the photo to smoothly fill edges without cutting anything */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none transition-all duration-700"
-              style={{ backgroundImage: `url(${selectedImage || product.featuredImage})` }}
-            />
-
+          <div className="relative aspect-[4/3] sm:aspect-[16/11] w-full bg-neutral-50/80 border border-neutral-200/80 rounded-xs overflow-hidden flex items-center justify-center group shadow-2xs">
             {/* Sharp uncropped main photo */}
             <div
               className="relative w-full h-full p-2.5 sm:p-4 flex items-center justify-center z-10 cursor-zoom-in"

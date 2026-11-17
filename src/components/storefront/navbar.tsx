@@ -20,6 +20,7 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'All Products', href: '/collections/all' },
+    { label: 'Track Order', href: '/track' },
     { label: 'Contact', href: '/contact' },
   ];
 

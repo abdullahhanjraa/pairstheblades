@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-const MASTER_PASSKEY = 'abdullahhanjra17';
+const MASTER_PASSKEY = (process.env.ADMIN_PASSKEY || 'abdullahhanjra17').trim().toLowerCase();
 const AUTH_COOKIE_NAME = 'pairs_admin_auth';
 const AUTH_COOKIE_VALUE = 'valid_founder_session_abdullah17';
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 Days
+      maxAge: 60 * 60 * 2, // 2 Hours Ephemeral Session (Auto-locks on timeout)
     });
 
     return NextResponse.json({

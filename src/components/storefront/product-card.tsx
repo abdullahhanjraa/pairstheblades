@@ -65,26 +65,19 @@ export function ProductCard({
         setQuickSelectOpen(false);
       }}
     >
-      {/* Image Container - 100% Uncropped Showcase */}
-      <div className="relative aspect-[4/3] sm:aspect-square w-full overflow-hidden bg-neutral-900/5 border border-neutral-200/60 rounded-xs">
-        {/* Ambient subtle glow matching the photo to smoothly fill edges */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-cover bg-center blur-xl opacity-20 scale-110 pointer-events-none transition-all duration-700"
-          style={{ backgroundImage: `url(${featuredImage})` }}
-        />
-
-        <Link href={`/products/${handle}`} className="relative z-10 block w-full h-full p-2.5 sm:p-3">
+      {/* Image Container - Natural Blade Ratio & Clean Luxury Backdrop */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-50/80 border border-neutral-200/70 hover:border-black/40 transition-colors rounded-xs shadow-2xs">
+        <Link href={`/products/${handle}`} className="relative z-10 block w-full h-full p-2 sm:p-2.5">
           {/* Primary image */}
           <Image
             src={featuredImage}
             alt={title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className={`object-contain object-center transition-all duration-500 ease-out p-2 ${
+            className={`object-contain object-center transition-all duration-500 ease-out ${
               isHovered && secondaryImage !== featuredImage
-                ? 'opacity-0 scale-105'
-                : 'opacity-100 scale-100'
+                ? 'opacity-0 scale-103'
+                : 'opacity-100 scale-100 group-hover:scale-103'
             }`}
             priority={false}
           />
@@ -96,8 +89,8 @@ export function ProductCard({
               alt={`${title} alternate`}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className={`object-contain object-center absolute inset-0 transition-all duration-500 ease-out p-2 ${
-                isHovered ? 'opacity-100 scale-105' : 'opacity-0 scale-100'
+              className={`object-contain object-center absolute inset-0 transition-all duration-500 ease-out p-2 sm:p-2.5 ${
+                isHovered ? 'opacity-100 scale-103' : 'opacity-0 scale-100'
               }`}
             />
           )}
