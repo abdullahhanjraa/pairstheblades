@@ -1,7 +1,7 @@
 import React from 'react';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { AdminSecurityGate } from '@/components/admin/admin-security-gate';
 import { AdminHeader } from '@/components/admin/admin-header';
 
 export const dynamic = 'force-dynamic';
@@ -15,9 +15,9 @@ export default async function AdminLayout({
   const token = cookieStore.get('pairs_admin_auth')?.value;
   const isAuthorized = token === 'valid_founder_session_abdullah17';
 
-  // If unauthorized, block access and render the Founder Security Gate
+  // If unauthorized, redirect to the isolated Admin Login Gatekeeper
   if (!isAuthorized) {
-    return <AdminSecurityGate />;
+    redirect('/admin/login');
   }
 
   const [unfulfilledCount, store] = await Promise.all([

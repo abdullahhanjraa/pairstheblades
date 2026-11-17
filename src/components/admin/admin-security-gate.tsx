@@ -25,8 +25,8 @@ export function AdminSecurityGate() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        // Success: Reload page to render the authenticated admin dashboard
-        window.location.reload();
+        // Success: Redirect to the authenticated admin dashboard
+        window.location.href = '/admin';
       } else {
         setError(data.error || 'Access Denied: Invalid security passkey.');
         setIsLoading(false);
