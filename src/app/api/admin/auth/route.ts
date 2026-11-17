@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { prisma } from '@/lib/db';
+import {
+  AUTH_COOKIE_NAME,
+  AUTH_COOKIE_VALUE,
+  hashPasskey,
+  verifyPasskey,
+} from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
-
-const MASTER_PASSKEY = (process.env.ADMIN_PASSKEY || 'abdullahhanjra17').trim().toLowerCase();
-const AUTH_COOKIE_NAME = 'pairs_admin_auth';
-const AUTH_COOKIE_VALUE = 'valid_founder_session_abdullah17';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -27,9 +30,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const cleanPasskey = passkey.trim().toLowerCase();
+    const store = await prisma.store.findFirst({
+      select: { id: true, adminPasskeyHash: true },
+    });
 
-    if (cleanPasskey !== MASTER_PASSKEY) {
+    const isValid = verifyPasskey(passkey, store?.adminPasskeyHash);
+
+    if (!isValid) {
       // Artificial delay to defend against rapid brute-force dictionary attacks
       await new Promise((resolve) => setTimeout(resolve, 800));
       return NextResponse.json(
@@ -55,6 +62,101 @@ export async function POST(req: Request) {
     console.error('Admin Auth Error:', err);
     return NextResponse.json(
       { error: err.message || 'Authentication error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: Request) {
+  try {
+    // 1. Verify active admin session
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    if (token !== AUTH_COOKIE_VALUE) {
+      return NextResponse.json(
+        { error: 'Unauthorized: You must be signed in to change the master password.' },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { currentPassword, newPassword, confirmPassword } = body;
+
+    if (
+      !currentPassword ||
+      typeof currentPassword !== 'string' ||
+      !newPassword ||
+      typeof newPassword !== 'string' ||
+      !confirmPassword ||
+      typeof confirmPassword !== 'string'
+    ) {
+      return NextResponse.json(
+        { error: 'Please fill in current password, new password, and confirm password.' },
+        { status: 400 }
+      );
+    }
+
+    const cleanCurrent = currentPassword.trim();
+    const cleanNew = newPassword.trim();
+    const cleanConfirm = confirmPassword.trim();
+
+    if (cleanNew.length < 6) {
+      return NextResponse.json(
+        { error: 'New password must be at least 6 characters long.' },
+        { status: 400 }
+      );
+    }
+
+    if (cleanNew !== cleanConfirm) {
+      return NextResponse.json(
+        { error: 'New password and confirmation do not match.' },
+        { status: 400 }
+      );
+    }
+
+    if (cleanNew === cleanCurrent) {
+      return NextResponse.json(
+        { error: 'New password must be different from your current password.' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Verify current (past) password against active stored hash or fallback
+    const store = await prisma.store.findFirst({
+      select: { id: true, adminPasskeyHash: true },
+    });
+
+    const isCurrentValid = verifyPasskey(cleanCurrent, store?.adminPasskeyHash);
+    if (!isCurrentValid) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return NextResponse.json(
+        { error: 'Current password is incorrect. Password was not changed.' },
+        { status: 401 }
+      );
+    }
+
+    // 3. Hash new password with salted scrypt and persist to Supabase PostgreSQL
+    const hashed = hashPasskey(cleanNew);
+
+    if (store) {
+      await prisma.store.update({
+        where: { id: store.id },
+        data: { adminPasskeyHash: hashed },
+      });
+    } else {
+      await prisma.store.create({
+        data: { adminPasskeyHash: hashed },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Master password updated securely! Use your new password next time you sign in.',
+    });
+  } catch (err: any) {
+    console.error('Admin Password Update Error:', err);
+    return NextResponse.json(
+      { error: err.message || 'Failed to update password' },
       { status: 500 }
     );
   }

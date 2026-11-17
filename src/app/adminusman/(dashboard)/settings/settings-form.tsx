@@ -23,6 +23,11 @@ import {
   AlertTriangle,
   Upload,
   MessageCircle,
+  Shield,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { validateHeroBanner } from '@/lib/image-validator';
@@ -30,12 +35,17 @@ import { validateHeroBanner } from '@/lib/image-validator';
 interface SettingsFormProps {
   initialStore: any;
   initialDiscounts: any[];
+  initialHasCustomPassword?: boolean;
 }
 
-export function SettingsForm({ initialStore, initialDiscounts }: SettingsFormProps) {
+export function SettingsForm({
+  initialStore,
+  initialDiscounts,
+  initialHasCustomPassword = false,
+}: SettingsFormProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    'general' | 'theme' | 'shipping' | 'payments' | 'social' | 'discounts' | 'policies'
+    'general' | 'theme' | 'shipping' | 'payments' | 'social' | 'discounts' | 'policies' | 'security'
   >('general');
 
   // Master Store Form State
@@ -157,6 +167,18 @@ export function SettingsForm({ initialStore, initialDiscounts }: SettingsFormPro
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
   const bannerFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Security & Master Password Change State
+  const [hasCustomPassword, setHasCustomPassword] = useState(initialHasCustomPassword);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   const handleBannerFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -336,6 +358,65 @@ export function SettingsForm({ initialStore, initialDiscounts }: SettingsFormPro
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      setPasswordError('Please fill in all three password fields.');
+      return;
+    }
+
+    if (newPassword.trim().length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    if (newPassword.trim() === currentPassword.trim()) {
+      setPasswordError('New password must be different from your current password.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newPassword: newPassword.trim(),
+          confirmPassword: confirmPassword.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPasswordSuccess(
+          data.message || 'Master password updated securely! Use your new password next time you sign in.'
+        );
+        setHasCustomPassword(true);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowCurrentPassword(false);
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+      } else {
+        setPasswordError(data.error || 'Failed to update password. Please verify your current password.');
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || 'Network error while updating password.');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const tabs = [
     { id: 'general', label: 'General & Identity', icon: Store },
     { id: 'theme', label: 'Homepage Customizer', icon: Palette },
@@ -344,6 +425,7 @@ export function SettingsForm({ initialStore, initialDiscounts }: SettingsFormPro
     { id: 'social', label: 'Social Channels', icon: Share2 },
     { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
     { id: 'policies', label: 'Store Policies & Content', icon: FileText },
+    { id: 'security', label: 'Security & Password', icon: Shield },
   ] as const;
 
   return (
@@ -2026,6 +2108,199 @@ export function SettingsForm({ initialStore, initialDiscounts }: SettingsFormPro
                 {isSaving ? 'Saving...' : 'Save Store Policies'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* TAB 8: SECURITY & MASTER PASSWORD */}
+        {activeTab === 'security' && (
+          <div className="space-y-6 max-w-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider text-black flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-black" />
+                  <span>Admin Security & Master Password</span>
+                </h2>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Change your Master Founder Passkey directly from the control panel. Your new password is encrypted with salted scrypt hashing and stored securely in Supabase.
+                </p>
+              </div>
+            </div>
+
+            {/* Security Status Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-neutral-50 border border-neutral-200 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                  Password Status
+                </span>
+                {hasCustomPassword ? (
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-700">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>Custom Encrypted Password Active</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-700">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>Initial Default Passkey Active</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-neutral-50 border border-neutral-200 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                  Private Admin URL
+                </span>
+                <div className="flex items-center space-x-1.5 text-xs font-mono font-bold text-neutral-900">
+                  <Lock className="w-3.5 h-3.5 text-neutral-600 flex-shrink-0" />
+                  <span>/adminusman</span>
+                  <span className="text-[10px] font-sans font-normal text-neutral-500">
+                    (/admin returns 404)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Alerts */}
+            {passwordError && (
+              <div className="p-3.5 bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            {/* Password Change Form */}
+            <form onSubmit={handleChangePassword} className="space-y-5 pt-1">
+              {/* Current / Past Password */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1.5">
+                  Current (Past) Password *
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3 top-3 text-neutral-400" />
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current active password..."
+                    autoComplete="current-password"
+                    className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-2.5 text-neutral-400 hover:text-black cursor-pointer"
+                    aria-label="Toggle current password visibility"
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1.5">
+                  New Password *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3 top-3 text-neutral-400" />
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter your new password (min 6 characters)..."
+                    autoComplete="new-password"
+                    className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-2.5 text-neutral-400 hover:text-black cursor-pointer"
+                    aria-label="Toggle new password visibility"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Passwords are case-sensitive. Use a mix of letters and numbers you can easily remember.
+                </p>
+              </div>
+
+              {/* Confirm New Password */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1.5">
+                  Confirm New Password *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3 top-3 text-neutral-400" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your new password to confirm..."
+                    autoComplete="new-password"
+                    className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-2.5 text-neutral-400 hover:text-black cursor-pointer"
+                    aria-label="Toggle confirm password visibility"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {confirmPassword && newPassword && (
+                  <p
+                    className={`text-[11px] font-semibold mt-1 ${
+                      newPassword === confirmPassword ? 'text-emerald-700' : 'text-red-600'
+                    }`}
+                  >
+                    {newPassword === confirmPassword
+                      ? '✓ Passwords match'
+                      : '✕ Passwords do not match'}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <p className="text-[11px] text-neutral-500">
+                  Once updated, the old password stops working immediately across all devices.
+                </p>
+                <button
+                  type="submit"
+                  disabled={
+                    isUpdatingPassword ||
+                    !currentPassword.trim() ||
+                    !newPassword.trim() ||
+                    !confirmPassword.trim()
+                  }
+                  className="w-full sm:w-auto px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors cursor-pointer rounded-xs shadow-xs flex items-center justify-center space-x-2"
+                >
+                  {isUpdatingPassword ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Updating Password...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>Update Master Password</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

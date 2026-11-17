@@ -5,7 +5,9 @@ import { prisma } from '@/lib/db';
 export async function GET() {
   try {
     const store = await prisma.store.findFirst();
-    return NextResponse.json({ store });
+    if (!store) return NextResponse.json({ store: null });
+    const { adminPasskeyHash: _hidden, ...safeStore } = store;
+    return NextResponse.json({ store: safeStore });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -165,7 +167,8 @@ export async function POST(req: Request) {
     revalidatePath('/policies/privacy-policy');
     revalidatePath('/policies/contact-information');
 
-    return NextResponse.json({ success: true, store });
+    const { adminPasskeyHash: _hidden, ...safeStore } = store;
+    return NextResponse.json({ success: true, store: safeStore });
   } catch (err: any) {
     console.error('Settings save error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
