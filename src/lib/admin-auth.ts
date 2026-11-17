@@ -1,8 +1,5 @@
 import crypto from 'crypto';
 
-export const AUTH_COOKIE_NAME = 'pairs_admin_auth';
-export const AUTH_COOKIE_VALUE = 'valid_founder_session_abdullah17';
-
 const DEFAULT_FALLBACK_PASSKEY = (process.env.ADMIN_PASSKEY || 'abdullahhanjra17')
   .trim()
   .toLowerCase();

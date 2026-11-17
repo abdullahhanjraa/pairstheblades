@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { AUTH_COOKIE_NAME, verifySignedSessionToken } from '@/lib/session-edge';
 
-const AUTH_COOKIE_NAME = 'pairs_admin_auth';
-const AUTH_COOKIE_VALUE = 'valid_founder_session_abdullah17';
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Completely disguise old /admin routes as 404 Not Found (Stealth Mode)
@@ -12,21 +10,14 @@ export function middleware(request: NextRequest) {
     return new NextResponse('Page Not Found', { status: 404 });
   }
 
-  // 2. Allow public auth endpoints and login page for /adminusman
+  // 2. Allow auth endpoints & login page through (login page validates DB session version directly)
   if (pathname === '/adminusman/login' || pathname.startsWith('/api/admin/auth')) {
-    // If user is already authenticated and visits /adminusman/login, forward to /adminusman
-    if (pathname === '/adminusman/login') {
-      const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
-      if (authCookie?.value === AUTH_COOKIE_VALUE) {
-        return NextResponse.redirect(new URL('/adminusman', request.url));
-      }
-    }
     return NextResponse.next();
   }
 
-  // 3. Check session authentication for /adminusman
+  // 3. Verify cryptographic HMAC-SHA256 session cookie at the Edge
   const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
-  const isAuthorized = authCookie?.value === AUTH_COOKIE_VALUE;
+  const { valid: isAuthorized } = await verifySignedSessionToken(authCookie?.value);
 
   // 4. Protect all /adminusman pages
   if (pathname.startsWith('/adminusman')) {

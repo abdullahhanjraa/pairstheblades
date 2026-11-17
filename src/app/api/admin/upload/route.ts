@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { prisma } from '@/lib/db';
+import { AUTH_COOKIE_NAME, verifySignedSessionToken } from '@/lib/session-edge';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +19,18 @@ const ALLOWED_MIME_TYPES = [
 
 export async function POST(req: Request) {
   try {
-    // 1. Session verification check
+    // 1. Cryptographic session & version verification check
     const cookieStore = await cookies();
-    const token = cookieStore.get('pairs_admin_auth')?.value;
-    const isAuthorized = token === 'valid_founder_session_abdullah17';
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
+    const verified = await verifySignedSessionToken(token);
+
+    let isAuthorized = false;
+    if (verified.valid) {
+      const store = await prisma.store
+        .findFirst({ orderBy: { createdAt: 'asc' }, select: { adminSessionVersion: true } })
+        .catch(() => null);
+      isAuthorized = verified.version === (store?.adminSessionVersion ?? 1);
+    }
 
     if (!isAuthorized) {
       return NextResponse.json(

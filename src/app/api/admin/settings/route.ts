@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db';
 
 export async function GET() {
   try {
-    const store = await prisma.store.findFirst();
+    const store = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!store) return NextResponse.json({ store: null });
-    const { adminPasskeyHash: _hidden, ...safeStore } = store;
+    const { adminPasskeyHash: _hidden, adminSessionVersion: _ver, ...safeStore } = store;
     return NextResponse.json({ store: safeStore });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

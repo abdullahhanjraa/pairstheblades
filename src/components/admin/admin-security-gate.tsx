@@ -2,10 +2,28 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Shield, Lock, KeyRound, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  Lock,
+  KeyRound,
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
-export function AdminSecurityGate() {
+interface AdminSecurityGateProps {
+  passwordChanged?: boolean;
+  sessionExpired?: boolean;
+}
+
+export function AdminSecurityGate({
+  passwordChanged = false,
+  sessionExpired = false,
+}: AdminSecurityGateProps) {
   const [passkey, setPasskey] = useState('');
+  const [showPasskey, setShowPasskey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,6 +80,22 @@ export function AdminSecurityGate() {
           </p>
         </div>
 
+        {/* Password changed confirmation banner */}
+        {passwordChanged && !error && (
+          <div className="p-3 bg-emerald-950/80 border border-emerald-700 text-emerald-200 text-xs font-semibold flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span>Master password updated! Sign in with your new password below.</span>
+          </div>
+        )}
+
+        {/* Session expired / rotated banner */}
+        {sessionExpired && !passwordChanged && !error && (
+          <div className="p-3 bg-amber-950/80 border border-amber-700 text-amber-200 text-xs font-semibold flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>Session locked (password updated or timed out). Please sign in again.</span>
+          </div>
+        )}
+
         {/* Error notification */}
         {error && (
           <div className="p-3 bg-red-950/80 border border-red-800 text-red-200 text-xs font-semibold flex items-center space-x-2 animate-in fade-in">
@@ -79,13 +113,24 @@ export function AdminSecurityGate() {
             <div className="relative">
               <KeyRound className="w-4 h-4 absolute left-3 top-3 text-neutral-500" />
               <input
-                type="password"
+                type={showPasskey ? 'text' : 'password'}
                 autoFocus
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Enter secret passkey..."
                 value={passkey}
                 onChange={(e) => setPasskey(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-neutral-900 border border-neutral-700 focus:outline-none focus:border-white text-xs font-mono text-white placeholder-neutral-600 transition-colors"
+                className="w-full pl-9 pr-10 py-2.5 bg-neutral-900 border border-neutral-700 focus:outline-none focus:border-white text-xs font-mono text-white placeholder-neutral-600 transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowPasskey(!showPasskey)}
+                className="absolute right-3 top-2.5 text-neutral-500 hover:text-white transition-colors cursor-pointer"
+                aria-label="Toggle password visibility"
+              >
+                {showPasskey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 

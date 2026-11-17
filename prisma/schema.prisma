@@ -88,8 +88,9 @@ model Store {
   policyPrivacy         String?
   policyContact         String?
 
-  // Admin Security Credentials (scrypt salted hash)
+  // Admin Security Credentials (scrypt salted hash & session version)
   adminPasskeyHash      String?
+  adminSessionVersion   Int       @default(1)
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

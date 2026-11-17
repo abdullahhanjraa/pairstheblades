@@ -1,21 +1,34 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { hashPasskey, verifyPasskey } from '@/lib/admin-auth';
 import {
   AUTH_COOKIE_NAME,
-  AUTH_COOKIE_VALUE,
-  hashPasskey,
-  verifyPasskey,
-} from '@/lib/admin-auth';
+  createSignedSessionToken,
+  verifySignedSessionToken,
+} from '@/lib/session-edge';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-  const isAuthenticated = token === AUTH_COOKIE_VALUE;
+  const verified = await verifySignedSessionToken(token);
 
-  return NextResponse.json({ authenticated: isAuthenticated });
+  if (!verified.valid) {
+    return NextResponse.json({ authenticated: false });
+  }
+
+  const store = await prisma.store
+    .findFirst({ orderBy: { createdAt: 'asc' }, select: { adminSessionVersion: true } })
+    .catch(() => null);
+  const activeVersion = store?.adminSessionVersion ?? 1;
+
+  return NextResponse.json({
+    authenticated: verified.version === activeVersion,
+  });
 }
 
 export async function POST(req: Request) {
@@ -31,7 +44,8 @@ export async function POST(req: Request) {
     }
 
     const store = await prisma.store.findFirst({
-      select: { id: true, adminPasskeyHash: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, adminPasskeyHash: true, adminSessionVersion: true },
     });
 
     const isValid = verifyPasskey(passkey, store?.adminPasskeyHash);
@@ -45,8 +59,11 @@ export async function POST(req: Request) {
       );
     }
 
+    const sessionVersion = store?.adminSessionVersion ?? 1;
+    const signedToken = await createSignedSessionToken(sessionVersion);
+
     const cookieStore = await cookies();
-    cookieStore.set(AUTH_COOKIE_NAME, AUTH_COOKIE_VALUE, {
+    cookieStore.set(AUTH_COOKIE_NAME, signedToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -69,12 +86,28 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    // 1. Verify active admin session
+    // 1. Verify active cryptographic session cookie AND active DB session version
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-    if (token !== AUTH_COOKIE_VALUE) {
+    const verified = await verifySignedSessionToken(token);
+
+    if (!verified.valid) {
       return NextResponse.json(
         { error: 'Unauthorized: You must be signed in to change the master password.' },
+        { status: 401 }
+      );
+    }
+
+    const store = await prisma.store.findFirst({
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, adminPasskeyHash: true, adminSessionVersion: true },
+    });
+
+    const activeVersion = store?.adminSessionVersion ?? 1;
+    if (verified.version !== activeVersion) {
+      cookieStore.delete(AUTH_COOKIE_NAME);
+      return NextResponse.json(
+        { error: 'Session expired because password was updated elsewhere. Please sign in again.' },
         { status: 401 }
       );
     }
@@ -122,10 +155,6 @@ export async function PUT(req: Request) {
     }
 
     // 2. Verify current (past) password against active stored hash or fallback
-    const store = await prisma.store.findFirst({
-      select: { id: true, adminPasskeyHash: true },
-    });
-
     const isCurrentValid = verifyPasskey(cleanCurrent, store?.adminPasskeyHash);
     if (!isCurrentValid) {
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -135,23 +164,38 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 3. Hash new password with salted scrypt and persist to Supabase PostgreSQL
+    // 3. Hash new password with salted scrypt AND rotate session version to kill all old sessions globally
     const hashed = hashPasskey(cleanNew);
 
     if (store) {
       await prisma.store.update({
         where: { id: store.id },
-        data: { adminPasskeyHash: hashed },
+        data: {
+          adminPasskeyHash: hashed,
+          adminSessionVersion: { increment: 1 },
+        },
       });
     } else {
       await prisma.store.create({
-        data: { adminPasskeyHash: hashed },
+        data: {
+          adminPasskeyHash: hashed,
+          adminSessionVersion: 2,
+        },
       });
     }
 
+    // 4. Clear current browser session so founder immediately signs in with the new password
+    cookieStore.delete(AUTH_COOKIE_NAME);
+
+    // 5. Revalidate admin routes so UI never shows stale cache
+    revalidatePath('/adminusman', 'layout');
+    revalidatePath('/adminusman/settings');
+    revalidatePath('/adminusman/login');
+
     return NextResponse.json({
       success: true,
-      message: 'Master password updated securely! Use your new password next time you sign in.',
+      requiresRelogin: true,
+      message: 'Master password updated & all old sessions locked! Redirecting to login...',
     });
   } catch (err: any) {
     console.error('Admin Password Update Error:', err);

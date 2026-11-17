@@ -398,7 +398,8 @@ export function SettingsForm({
       const data = await res.json();
       if (res.ok && data.success) {
         setPasswordSuccess(
-          data.message || 'Master password updated securely! Use your new password next time you sign in.'
+          data.message ||
+            'Master password updated & all old sessions locked! Redirecting to login gate...'
         );
         setHasCustomPassword(true);
         setCurrentPassword('');
@@ -407,6 +408,11 @@ export function SettingsForm({
         setShowCurrentPassword(false);
         setShowNewPassword(false);
         setShowConfirmPassword(false);
+
+        // Immediately redirect to login gate so founder verifies & signs in with the new password
+        setTimeout(() => {
+          window.location.href = '/adminusman/login?passwordChanged=1';
+        }, 1200);
       } else {
         setPasswordError(data.error || 'Failed to update password. Please verify your current password.');
       }
@@ -452,14 +458,21 @@ export function SettingsForm({
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            type="button"
-            onClick={() => handleSaveStore()}
-            disabled={isSaving}
-            className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors shadow-sm cursor-pointer"
-          >
-            {isSaving ? 'Synchronizing...' : 'Save All Settings'}
-          </button>
+          {activeTab === 'security' ? (
+            <span className="px-3 py-1.5 bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <Shield className="w-3.5 h-3.5 text-black" />
+              <span>Security Tab Active — Use Update Password Below</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSaveStore()}
+              disabled={isSaving}
+              className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors shadow-sm cursor-pointer"
+            >
+              {isSaving ? 'Synchronizing...' : 'Save All Settings'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -2189,6 +2202,9 @@ export function SettingsForm({
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Enter your current active password..."
                     autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
                     required
                   />
@@ -2216,6 +2232,9 @@ export function SettingsForm({
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter your new password (min 6 characters)..."
                     autoComplete="new-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
                     required
                     minLength={6}
@@ -2247,6 +2266,9 @@ export function SettingsForm({
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your new password to confirm..."
                     autoComplete="new-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-full pl-9 pr-10 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
                     required
                     minLength={6}
