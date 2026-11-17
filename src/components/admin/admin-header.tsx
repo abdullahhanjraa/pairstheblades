@@ -25,19 +25,19 @@ export function AdminHeader({ unfulfilledCount = 0, storeName }: AdminHeaderProp
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const adminLinks = [
-    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { label: 'Products & Stock', href: '/admin/products', icon: Package },
+    { label: 'Dashboard', href: '/adminusman', icon: LayoutDashboard },
+    { label: 'Products & Stock', href: '/adminusman/products', icon: Package },
     {
       label: 'Orders & Dispatch',
-      href: '/admin/orders',
+      href: '/adminusman/orders',
       icon: ShoppingBag,
       badge: unfulfilledCount > 0 ? unfulfilledCount : null,
     },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Settings', href: '/adminusman/settings', icon: Settings },
   ];
 
   const isLinkActive = (href: string) => {
-    if (href === '/admin') return pathname === '/admin';
+    if (href === '/adminusman') return pathname === '/adminusman';
     return pathname.startsWith(href);
   };
 
@@ -46,7 +46,7 @@ export function AdminHeader({ unfulfilledCount = 0, storeName }: AdminHeaderProp
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between">
         {/* Left: Brand & Navigation */}
         <div className="flex items-center space-x-6">
-          <Link href="/admin" className="flex items-center space-x-2.5 group">
+          <Link href="/adminusman" className="flex items-center space-x-2.5 group">
             <Store className="w-5 h-5 text-neutral-300 group-hover:text-white transition-colors" />
             <span className="font-extrabold text-sm uppercase tracking-wider text-white">
               {storeName || 'Pairs Knife & Sword Co.'}

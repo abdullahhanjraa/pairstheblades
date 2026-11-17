@@ -85,8 +85,8 @@ export async function PATCH(
     revalidatePath('/', 'layout');
     revalidatePath('/collections/all');
     revalidatePath(`/products/${updated.handle}`);
-    revalidatePath('/admin');
-    revalidatePath('/admin/products');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/products');
 
     return NextResponse.json({ success: true, product: finalProduct || updated });
   } catch (err: any) {
@@ -120,8 +120,8 @@ export async function DELETE(
 
     revalidatePath('/', 'layout');
     revalidatePath('/collections/all');
-    revalidatePath('/admin');
-    revalidatePath('/admin/products');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/products');
 
     return NextResponse.json({ success: true, deletedId: deleted.id });
   } catch (err: any) {

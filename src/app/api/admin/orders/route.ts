@@ -65,8 +65,8 @@ export async function PATCH(req: Request) {
         return count;
       });
 
-      revalidatePath('/admin');
-      revalidatePath('/admin/orders');
+      revalidatePath('/adminusman');
+      revalidatePath('/adminusman/orders');
 
       return NextResponse.json({
         success: true,
@@ -81,8 +81,8 @@ export async function PATCH(req: Request) {
         data: { financialStatus: 'PAID' },
       });
 
-      revalidatePath('/admin');
-      revalidatePath('/admin/orders');
+      revalidatePath('/adminusman');
+      revalidatePath('/adminusman/orders');
 
       return NextResponse.json({
         success: true,
@@ -111,8 +111,8 @@ export async function DELETE(req: Request) {
         prisma.order.deleteMany({}),
       ]);
 
-      revalidatePath('/admin');
-      revalidatePath('/admin/orders');
+      revalidatePath('/adminusman');
+      revalidatePath('/adminusman/orders');
 
       return NextResponse.json({
         success: true,
@@ -139,8 +139,8 @@ export async function DELETE(req: Request) {
         }),
       ]);
 
-      revalidatePath('/admin');
-      revalidatePath('/admin/orders');
+      revalidatePath('/adminusman');
+      revalidatePath('/adminusman/orders');
 
       return NextResponse.json({
         success: true,

@@ -155,8 +155,8 @@ export async function POST(req: Request) {
 
     // Invalidate caches across the entire site
     revalidatePath('/', 'layout');
-    revalidatePath('/admin');
-    revalidatePath('/admin/settings');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/settings');
     revalidatePath('/checkout');
     revalidatePath('/collections/all');
     revalidatePath('/policies/refund-policy');

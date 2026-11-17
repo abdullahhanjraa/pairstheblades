@@ -121,8 +121,8 @@ export async function POST(req: Request) {
 
     revalidatePath('/', 'layout');
     revalidatePath('/collections/all');
-    revalidatePath('/admin');
-    revalidatePath('/admin/products');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/products');
 
     return NextResponse.json({ success: true, product });
   } catch (err: any) {

@@ -7,36 +7,45 @@ const AUTH_COOKIE_VALUE = 'valid_founder_session_abdullah17';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Allow public auth endpoints and login page
-  if (pathname === '/admin/login' || pathname.startsWith('/api/admin/auth')) {
-    // If user is already authenticated and visits /admin/login, forward to /admin
-    if (pathname === '/admin/login') {
+  // 1. Completely disguise old /admin routes as 404 Not Found (Stealth Mode)
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return new NextResponse('Page Not Found', { status: 404 });
+  }
+
+  // 2. Allow public auth endpoints and login page for /adminusman
+  if (pathname === '/adminusman/login' || pathname.startsWith('/api/admin/auth')) {
+    // If user is already authenticated and visits /adminusman/login, forward to /adminusman
+    if (pathname === '/adminusman/login') {
       const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
       if (authCookie?.value === AUTH_COOKIE_VALUE) {
-        return NextResponse.redirect(new URL('/admin', request.url));
+        return NextResponse.redirect(new URL('/adminusman', request.url));
       }
     }
     return NextResponse.next();
   }
 
-  // 2. Check session authentication
+  // 3. Check session authentication for /adminusman
   const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
   const isAuthorized = authCookie?.value === AUTH_COOKIE_VALUE;
 
-  // 3. Protect all admin pages (/admin, /admin/products, /admin/orders, /admin/settings, etc.)
-  if (pathname.startsWith('/admin')) {
+  // 4. Protect all /adminusman pages
+  if (pathname.startsWith('/adminusman')) {
     if (!isAuthorized) {
-      const loginUrl = new URL('/admin/login', request.url);
+      const loginUrl = new URL('/adminusman/login', request.url);
       loginUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // 4. Protect all admin internal APIs (/api/admin/products, /api/admin/orders, etc.)
+  // 5. Protect all internal admin APIs (/api/admin/products, /api/admin/orders, etc.)
+  // Allow read-only GET on /api/admin/settings so the public /checkout page can load shipping fees & payment options
   if (pathname.startsWith('/api/admin')) {
+    if (pathname === '/api/admin/settings' && request.method === 'GET') {
+      return NextResponse.next();
+    }
     if (!isAuthorized) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin session required. Please authenticate at /admin/login.' },
+        { error: 'Unauthorized: Admin session required. Please authenticate at /adminusman/login.' },
         { status: 401 }
       );
     }
@@ -46,5 +55,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin', '/admin/:path*', '/adminusman', '/adminusman/:path*', '/api/admin/:path*'],
 };

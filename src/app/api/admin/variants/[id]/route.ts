@@ -21,8 +21,8 @@ export async function PATCH(
 
     revalidatePath('/', 'layout');
     revalidatePath('/collections/all');
-    revalidatePath('/admin');
-    revalidatePath('/admin/products');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/products');
 
     return NextResponse.json({ success: true, variant: updated });
   } catch (err: any) {

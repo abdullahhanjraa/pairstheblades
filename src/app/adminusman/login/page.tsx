@@ -12,7 +12,7 @@ export default async function AdminLoginPage() {
 
   // If already authenticated, redirect straight to the dashboard
   if (isAuthorized) {
-    redirect('/admin');
+    redirect('/adminusman');
   }
 
   return <AdminSecurityGate />;

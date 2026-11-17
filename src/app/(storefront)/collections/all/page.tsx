@@ -23,9 +23,9 @@ export default async function CollectionsAllPage({
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 2,
     });
-    redirect('/admin');
+    redirect('/adminusman');
   }
 
   let products: any[] = [];

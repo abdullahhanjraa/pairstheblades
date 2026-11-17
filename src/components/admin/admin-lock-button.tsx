@@ -12,10 +12,10 @@ export function AdminLockButton() {
     setIsLocking(true);
     try {
       await fetch('/api/admin/auth', { method: 'DELETE' });
-      window.location.href = '/admin/login';
+      window.location.href = '/adminusman/login';
     } catch (e) {
       console.error('Error locking session', e);
-      window.location.href = '/admin/login';
+      window.location.href = '/adminusman/login';
     }
   };
 

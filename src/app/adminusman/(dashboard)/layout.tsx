@@ -17,7 +17,7 @@ export default async function AdminLayout({
 
   // If unauthorized, redirect to the isolated Admin Login Gatekeeper
   if (!isAuthorized) {
-    redirect('/admin/login');
+    redirect('/adminusman/login');
   }
 
   const [unfulfilledCount, store] = await Promise.all([

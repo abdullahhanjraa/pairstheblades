@@ -70,7 +70,7 @@ export default async function AdminDashboardPage() {
 
         <div className="flex items-center space-x-3">
           <Link
-            href="/admin/orders"
+            href="/adminusman/orders"
             className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shadow-sm"
           >
             Manage Orders ({unfulfilledOrdersCount} Pending)
@@ -161,7 +161,7 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-neutral-500">Latest nationwide orders</p>
             </div>
             <Link
-              href="/admin/orders"
+              href="/adminusman/orders"
               className="text-xs font-semibold text-black hover:text-neutral-600 flex items-center space-x-1"
             >
               <span>View All</span>
@@ -234,7 +234,7 @@ export default async function AdminDashboardPage() {
                 Active Catalog
               </h2>
               <Link
-                href="/admin/products"
+                href="/adminusman/products"
                 className="text-xs text-black font-semibold hover:underline"
               >
                 Edit Stock

@@ -76,8 +76,8 @@ export async function PATCH(
       },
     });
 
-    revalidatePath('/admin');
-    revalidatePath('/admin/orders');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/orders');
 
     return NextResponse.json({ success: true, order: updated });
   } catch (err: any) {
@@ -98,8 +98,8 @@ export async function DELETE(
     await prisma.orderItem.deleteMany({ where: { orderId: id } });
     await prisma.order.delete({ where: { id } });
 
-    revalidatePath('/admin');
-    revalidatePath('/admin/orders');
+    revalidatePath('/adminusman');
+    revalidatePath('/adminusman/orders');
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -42,7 +42,7 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
       }
       setSearchOpen(false);
       setSearchQuery('');
-      router.push('/admin');
+      router.push('/adminusman');
       return;
     }
 

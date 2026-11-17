@@ -379,8 +379,8 @@ export async function POST(req: Request) {
       });
 
       // Invalidate Admin Cache
-      revalidatePath('/admin');
-      revalidatePath('/admin/orders');
+      revalidatePath('/adminusman');
+      revalidatePath('/adminusman/orders');
 
       return {
         success: true,
