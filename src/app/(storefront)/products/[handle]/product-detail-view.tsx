@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp, Truck, ShieldCheck, Plus, Minus, ArrowLeft, Maximize2, X } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { formatPKR } from '@/lib/formatters';
+import { trackStoreEvent } from '@/lib/analytics';
 
 export interface ProductDetailViewProps {
   product: {
@@ -42,6 +43,15 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
   );
   const [quantity, setQuantity] = useState(1);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Fire ViewContent / PRODUCT_VIEW conversion event once per product mount
+  React.useEffect(() => {
+    trackStoreEvent('PRODUCT_VIEW', {
+      productId: product.id,
+      contentName: product.title,
+      value: product.price,
+    });
+  }, [product.id, product.title, product.price]);
 
   // Close lightbox on Escape key
   React.useEffect(() => {

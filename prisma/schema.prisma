@@ -92,6 +92,11 @@ model Store {
   adminPasskeyHash      String?
   adminSessionVersion   Int       @default(1)
 
+  // Marketing Pixels & Conversion Tracking
+  metaPixelId           String    @default("")
+  tiktokPixelId         String    @default("")
+  ga4MeasurementId      String    @default("")
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -191,4 +196,18 @@ model OrderItem {
   price        Float
   quantity     Int             @default(1)
   image        String?
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  eventType String   // PAGE_VIEW, PRODUCT_VIEW, ADD_TO_CART, CHECKOUT_START, PURCHASE
+  path      String?
+  productId String?
+  value     Float?
+  metaJson  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt, eventType])
+  @@index([sessionId, eventType])
 }

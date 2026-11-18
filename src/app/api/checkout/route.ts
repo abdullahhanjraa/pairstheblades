@@ -382,6 +382,27 @@ export async function POST(req: Request) {
       revalidatePath('/adminusman');
       revalidatePath('/adminusman/orders');
 
+      // Record guaranteed server-side PURCHASE analytics event (works even with client ad-blockers)
+      const sid =
+        typeof body.analyticsSessionId === 'string' && body.analyticsSessionId.trim()
+          ? body.analyticsSessionId.trim().slice(0, 80)
+          : `order_${order.orderNumber}`;
+      await prisma.analyticsEvent
+        .create({
+          data: {
+            sessionId: sid,
+            eventType: 'PURCHASE',
+            path: '/checkout',
+            value: order.totalPrice,
+            metaJson: JSON.stringify({
+              orderNumber: order.orderNumber,
+              city: order.city,
+              paymentMethod: order.paymentMethod,
+            }),
+          },
+        })
+        .catch(() => {});
+
       return {
         success: true,
         order: responseOrder,

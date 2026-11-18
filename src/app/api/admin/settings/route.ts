@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import {
+  sanitizeMetaPixelId,
+  sanitizeTikTokPixelId,
+  sanitizeGa4Id,
+} from '@/lib/analytics';
 
 export async function GET() {
   try {
@@ -74,9 +79,32 @@ export async function POST(req: Request) {
       policyTerms,
       policyPrivacy,
       policyContact,
+      metaPixelId,
+      tiktokPixelId,
+      ga4MeasurementId,
     } = body;
 
-    let store = await prisma.store.findFirst();
+    // Validate Pixel IDs strictly when non-empty to prevent malformed/unsafe scripts
+    if (typeof metaPixelId === 'string' && metaPixelId.trim() !== '' && !sanitizeMetaPixelId(metaPixelId)) {
+      return NextResponse.json(
+        { error: 'Invalid Meta Pixel ID. It should contain digits only (e.g. 123456789012345).' },
+        { status: 400 }
+      );
+    }
+    if (typeof tiktokPixelId === 'string' && tiktokPixelId.trim() !== '' && !sanitizeTikTokPixelId(tiktokPixelId)) {
+      return NextResponse.json(
+        { error: 'Invalid TikTok Pixel ID. Use letters and numbers only (e.g. C1234567890ABCDEF).' },
+        { status: 400 }
+      );
+    }
+    if (typeof ga4MeasurementId === 'string' && ga4MeasurementId.trim() !== '' && !sanitizeGa4Id(ga4MeasurementId)) {
+      return NextResponse.json(
+        { error: 'Invalid Google Analytics 4 ID. Format must start with G- (e.g. G-XXXXXXXXXX).' },
+        { status: 400 }
+      );
+    }
+
+    let store = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
 
     const dataToSave = {
       ...(name !== undefined && { name }),
@@ -137,6 +165,9 @@ export async function POST(req: Request) {
       ...(policyTerms !== undefined && { policyTerms }),
       ...(policyPrivacy !== undefined && { policyPrivacy }),
       ...(policyContact !== undefined && { policyContact }),
+      ...(metaPixelId !== undefined && { metaPixelId: sanitizeMetaPixelId(metaPixelId) }),
+      ...(tiktokPixelId !== undefined && { tiktokPixelId: sanitizeTikTokPixelId(tiktokPixelId) }),
+      ...(ga4MeasurementId !== undefined && { ga4MeasurementId: sanitizeGa4Id(ga4MeasurementId) }),
     };
 
     if (!store) {

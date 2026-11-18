@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
 import { formatPKR } from '@/lib/formatters';
+import { trackStoreEvent, getOrCreateSessionId } from '@/lib/analytics';
 import {
   ShieldCheck,
   Truck,
@@ -43,6 +44,18 @@ export default function CheckoutPage() {
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const checkoutTrackedRef = React.useRef(false);
+
+  // Track InitiateCheckout once when shopper enters checkout with items in cart
+  React.useEffect(() => {
+    if (checkoutTrackedRef.current || items.length === 0) return;
+    checkoutTrackedRef.current = true;
+    trackStoreEvent('CHECKOUT_START', {
+      contentIds: items.map((i) => i.productId),
+      numItems: items.reduce((sum, i) => sum + i.quantity, 0),
+      value: subtotal,
+    });
+  }, [items, subtotal]);
 
   const [copiedField, setCopiedField] = useState<'iban' | 'account' | null>(null);
 
@@ -206,6 +219,7 @@ export default function CheckoutPage() {
           paymentMethod: formData.paymentMethod,
           discountCode: discountAmount > 0 ? discountCode : undefined,
           idempotencyKey: `${formData.phone.replace(/\D/g, '')}_${items.map((i) => `${i.variantId || i.productId}:${i.quantity}`).join('_')}`,
+          analyticsSessionId: getOrCreateSessionId(),
           notes: formData.notes,
           items: items.map((i) => ({
             productId: i.productId,
@@ -223,6 +237,13 @@ export default function CheckoutPage() {
 
       if (res.ok && data.success && (data.order || data.orderNumber)) {
         const orderNum = data.orderNumber || data.order?.orderNumber;
+        trackStoreEvent('PURCHASE', {
+          orderNumber: orderNum,
+          contentIds: items.map((i) => i.productId),
+          numItems: items.reduce((sum, i) => sum + i.quantity, 0),
+          value: grandTotal,
+          skipBeacon: true, // Server /api/checkout already guarantees DB PURCHASE row
+        });
         clearCart();
         router.push(`/order-success?orderNumber=${orderNum}`);
       } else {

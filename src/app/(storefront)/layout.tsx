@@ -5,6 +5,7 @@ import { Navbar } from '@/components/storefront/navbar';
 import { CartDrawer } from '@/components/storefront/cart-drawer';
 import { Footer } from '@/components/storefront/footer';
 import { FloatingWhatsApp } from '@/components/storefront/floating-whatsapp';
+import { TrackingPixels } from '@/components/storefront/tracking-pixels';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export default async function StorefrontLayout({
   let store: any = null;
 
   try {
-    store = await prisma.store.findFirst();
+    store = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
   } catch (e) {
     console.error('Error loading store in StorefrontLayout:', e);
   }
@@ -74,6 +75,13 @@ export default async function StorefrontLayout({
         phone={whatsappNumber}
         defaultMessage={whatsappDefaultMsg}
         enabled={enableFloatingWhatsApp && enableSocialLinks}
+      />
+
+      {/* Marketing Pixels (Meta, TikTok, GA4) & Conversion Funnel Beacon */}
+      <TrackingPixels
+        metaPixelId={store?.metaPixelId}
+        tiktokPixelId={store?.tiktokPixelId}
+        ga4MeasurementId={store?.ga4MeasurementId}
       />
     </div>
   );

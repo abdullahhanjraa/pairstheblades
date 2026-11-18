@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { trackStoreEvent } from '@/lib/analytics';
 
 export interface CartItem {
   id: string; // unique cart line id (e.g. variantId)
@@ -72,6 +73,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         );
       }
       return [...prev, { ...itemToAdd, id: itemToAdd.variantId }];
+    });
+    trackStoreEvent('ADD_TO_CART', {
+      productId: itemToAdd.productId,
+      contentName: itemToAdd.title,
+      value: itemToAdd.price * itemToAdd.quantity,
+      numItems: itemToAdd.quantity,
     });
     setIsOpen(true);
   };

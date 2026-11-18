@@ -28,6 +28,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Activity,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { validateHeroBanner } from '@/lib/image-validator';
@@ -45,7 +46,15 @@ export function SettingsForm({
 }: SettingsFormProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    'general' | 'theme' | 'shipping' | 'payments' | 'social' | 'discounts' | 'policies' | 'security'
+    | 'general'
+    | 'theme'
+    | 'shipping'
+    | 'payments'
+    | 'social'
+    | 'discounts'
+    | 'policies'
+    | 'pixels'
+    | 'security'
   >('general');
 
   // Master Store Form State
@@ -146,6 +155,11 @@ export function SettingsForm({
     policyTerms: initialStore?.policyTerms ?? '',
     policyPrivacy: initialStore?.policyPrivacy ?? '',
     policyContact: initialStore?.policyContact ?? '',
+
+    // Marketing Pixels & Conversion Tracking
+    metaPixelId: initialStore?.metaPixelId ?? '',
+    tiktokPixelId: initialStore?.tiktokPixelId ?? '',
+    ga4MeasurementId: initialStore?.ga4MeasurementId ?? '',
   });
 
   // Discounts state
@@ -431,6 +445,7 @@ export function SettingsForm({
     { id: 'social', label: 'Social Channels', icon: Share2 },
     { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
     { id: 'policies', label: 'Store Policies & Content', icon: FileText },
+    { id: 'pixels', label: 'Pixels & Tracking', icon: Activity },
     { id: 'security', label: 'Security & Password', icon: Shield },
   ] as const;
 
@@ -2124,7 +2139,188 @@ export function SettingsForm({
           </div>
         )}
 
-        {/* TAB 8: SECURITY & MASTER PASSWORD */}
+        {/* TAB 8: MARKETING PIXELS & CONVERSION TRACKING */}
+        {activeTab === 'pixels' && (
+          <div className="space-y-6 max-w-3xl">
+            <div className="pb-4 border-b border-neutral-200">
+              <h2 className="text-base font-semibold tracking-tight text-neutral-900">
+                Marketing Pixels &amp; Conversion Tracking
+              </h2>
+              <p className="text-xs text-neutral-500 mt-1">
+                Paste your ad platform IDs below and save. Standard e-commerce conversion events fire automatically in PKR across every page of your storefront.
+              </p>
+            </div>
+
+            {/* Live Pixel Connection Status Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  name: 'Meta Pixel',
+                  sub: 'Facebook & Instagram',
+                  active: /^\d{5,25}$/.test((store.metaPixelId || '').trim()),
+                },
+                {
+                  name: 'TikTok Pixel',
+                  sub: 'TikTok Ads Manager',
+                  active: /^[A-Za-z0-9_-]{5,40}$/.test((store.tiktokPixelId || '').trim()),
+                },
+                {
+                  name: 'Google Analytics 4',
+                  sub: 'GA4 Measurement',
+                  active: /^G-[A-Z0-9]{4,20}$/i.test((store.ga4MeasurementId || '').trim()),
+                },
+              ].map((pixel) => (
+                <div
+                  key={pixel.name}
+                  className="p-4 bg-neutral-50 border border-neutral-200 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-900">{pixel.name}</p>
+                    <p className="text-[11px] text-neutral-500">{pixel.sub}</p>
+                  </div>
+                  <span className="inline-flex items-center space-x-1.5 text-[11px] font-medium text-neutral-700">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        pixel.active ? 'bg-emerald-600' : 'bg-neutral-300'
+                      }`}
+                    />
+                    <span>{pixel.active ? 'Active' : 'Not set'}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Pixel ID Input Fields */}
+            <div className="space-y-5 pt-2">
+              <div>
+                <label className="block text-xs font-medium text-neutral-800 mb-1.5">
+                  Meta Pixel ID (Facebook &amp; Instagram Ads)
+                </label>
+                <input
+                  type="text"
+                  value={store.metaPixelId}
+                  onChange={(e) => setStore({ ...store, metaPixelId: e.target.value })}
+                  placeholder="e.g. 123456789012345"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full px-3 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono text-neutral-900 placeholder-neutral-400"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Find in Meta Events Manager → Data Sources → Dataset / Pixel ID (digits only). Leave blank to disable.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-800 mb-1.5">
+                  TikTok Pixel ID (TikTok Ads Manager)
+                </label>
+                <input
+                  type="text"
+                  value={store.tiktokPixelId}
+                  onChange={(e) => setStore({ ...store, tiktokPixelId: e.target.value })}
+                  placeholder="e.g. C1234567890ABCDEF"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full px-3 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono text-neutral-900 placeholder-neutral-400"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Find in TikTok Ads Manager → Tools → Events → Web Events → Pixel ID. Leave blank to disable.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-800 mb-1.5">
+                  Google Analytics 4 Measurement ID
+                </label>
+                <input
+                  type="text"
+                  value={store.ga4MeasurementId}
+                  onChange={(e) => setStore({ ...store, ga4MeasurementId: e.target.value })}
+                  placeholder="e.g. G-XXXXXXXXXX"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full px-3 py-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono text-neutral-900 placeholder-neutral-400"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Find in Google Analytics → Admin → Data Streams → Measurement ID (starts with G-). Leave blank to disable.
+                </p>
+              </div>
+            </div>
+
+            {/* Automatic Event Mapping Ledger */}
+            <div className="border border-neutral-200 bg-white">
+              <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-50 flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-900">
+                  Automatic Conversion Events Fired
+                </span>
+                <span className="text-[11px] font-mono text-neutral-500">Currency: PKR</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-neutral-100 text-neutral-500 text-[11px]">
+                      <th className="py-2.5 px-4 font-medium">Shopper Action</th>
+                      <th className="py-2.5 px-4 font-medium">Meta</th>
+                      <th className="py-2.5 px-4 font-medium">TikTok</th>
+                      <th className="py-2.5 px-4 font-medium">GA4</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 text-neutral-700 font-mono text-[11px]">
+                    <tr>
+                      <td className="py-2.5 px-4 font-sans text-neutral-900">Visits any page</td>
+                      <td className="py-2.5 px-4">PageView</td>
+                      <td className="py-2.5 px-4">page()</td>
+                      <td className="py-2.5 px-4">page_view</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-sans text-neutral-900">Opens blade product page</td>
+                      <td className="py-2.5 px-4">ViewContent</td>
+                      <td className="py-2.5 px-4">ViewContent</td>
+                      <td className="py-2.5 px-4">view_item</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-sans text-neutral-900">Clicks Add to Cart / Quick Add</td>
+                      <td className="py-2.5 px-4">AddToCart</td>
+                      <td className="py-2.5 px-4">AddToCart</td>
+                      <td className="py-2.5 px-4">add_to_cart</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-sans text-neutral-900">Enters checkout</td>
+                      <td className="py-2.5 px-4">InitiateCheckout</td>
+                      <td className="py-2.5 px-4">InitiateCheckout</td>
+                      <td className="py-2.5 px-4">begin_checkout</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 font-sans text-neutral-900">Places confirmed order</td>
+                      <td className="py-2.5 px-4 text-emerald-700 font-semibold">Purchase</td>
+                      <td className="py-2.5 px-4 text-emerald-700 font-semibold">CompletePayment</td>
+                      <td className="py-2.5 px-4 text-emerald-700 font-semibold">purchase</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <p className="text-xs text-neutral-500">
+                Changes take effect immediately across the storefront without redeploying.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleSaveStore()}
+                disabled={isSaving}
+                className="w-full sm:w-auto px-6 py-2.5 bg-black text-white text-xs font-semibold tracking-wide hover:bg-neutral-800 disabled:bg-neutral-400 transition-colors cursor-pointer"
+              >
+                {isSaving ? 'Saving...' : 'Save Tracking Pixels'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 9: SECURITY & MASTER PASSWORD */}
         {activeTab === 'security' && (
           <div className="space-y-6 max-w-2xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200">
