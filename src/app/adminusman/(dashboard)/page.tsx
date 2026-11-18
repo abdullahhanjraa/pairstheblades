@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { formatPKR } from '@/lib/formatters';
 import { getAdminAnalyticsSnapshot } from '@/lib/admin-analytics';
 import { AnalyticsDashboard } from '@/components/admin/analytics-dashboard';
+import { ClearAllDataButton } from '@/components/admin/clear-all-data-button';
 import {
   DollarSign,
   ShoppingBag,
@@ -59,7 +60,8 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center flex-wrap gap-2.5">
+          <ClearAllDataButton />
           <Link
             href="/adminusman/orders"
             className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shadow-sm"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowUpRight, RefreshCw, RotateCcw, Check } from 'lucide-react';
@@ -29,36 +29,36 @@ type ProductSortTab = 'views' | 'carts' | 'revenue' | 'conversion';
 
 const SIGNAL_META: Record<
   ProductSignal,
-  { label: string; tip: string; className: string }
+  { label: string; guidance: string; className: string }
 > = {
   winner: {
     label: 'Winner',
-    tip: 'Generating confirmed orders. Strong candidate to scale ads.',
+    guidance: 'Proven seller — safe to scale Instagram / TikTok ads.',
     className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   },
   high_interest: {
     label: 'High interest',
-    tip: 'Strong shopper add-to-cart rate. Keep stock ready.',
+    guidance: 'Strong buyer demand — watch stock closely.',
     className: 'bg-neutral-900 text-white border-neutral-900',
   },
   active: {
     label: 'Getting views',
-    tip: 'Receiving shopper visits in this period.',
+    guidance: 'Shoppers are browsing — monitor cart additions.',
     className: 'bg-neutral-100 text-neutral-700 border-neutral-200',
   },
   needs_review: {
     label: 'Needs review',
-    tip: 'Many views but very few cart adds. Check cover photo or price.',
+    guidance: 'People click, then leave — check cover photo or price.',
     className: 'bg-amber-50 text-amber-800 border-amber-200',
   },
   low_stock: {
     label: 'Low stock',
-    tip: 'Active demand with 5 or fewer units remaining. Restock soon.',
+    guidance: 'Restock before spending more on ads for this blade.',
     className: 'bg-red-50 text-red-700 border-red-200',
   },
   quiet: {
     label: 'Quiet',
-    tip: 'No views recorded in this period yet.',
+    guidance: 'No traffic reaching this blade yet.',
     className: 'bg-white text-neutral-400 border-neutral-200',
   },
 };
@@ -105,6 +105,11 @@ function formatPktTime(iso: string): string {
 export function AnalyticsDashboard({ initialSnapshot }: AnalyticsDashboardProps) {
   const [snapshot, setSnapshot] = useState<AdminAnalyticsSnapshot>(initialSnapshot);
   const [range, setRange] = useState<'7d' | '14d' | '30d'>('14d');
+
+  // Keep live snapshot synced whenever parent dashboard refreshes (e.g. after Clear All Data)
+  useEffect(() => {
+    setSnapshot(initialSnapshot);
+  }, [initialSnapshot]);
   const [productSort, setProductSort] = useState<ProductSortTab>('views');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -751,7 +756,7 @@ export function AnalyticsDashboard({ initialSnapshot }: AnalyticsDashboardProps)
                 <tr className="border-b border-neutral-100 text-[11px] text-neutral-500">
                   <th className="py-2.5 pr-3 font-medium w-10">Rank</th>
                   <th className="py-2.5 px-3 font-medium">Product</th>
-                  <th className="py-2.5 px-3 font-medium">Signal</th>
+                  <th className="py-2.5 px-3 font-medium">Signal &amp; Guidance</th>
                   <th className="py-2.5 px-3 font-medium text-right">Views</th>
                   <th className="py-2.5 px-3 font-medium text-right">Carts</th>
                   <th className="py-2.5 px-3 font-medium text-right">View → Cart</th>
@@ -840,14 +845,18 @@ export function AnalyticsDashboard({ initialSnapshot }: AnalyticsDashboardProps)
                         </div>
                       </td>
 
-                      {/* Plain-English Smart Signal */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <span
-                          title={sig.tip}
-                          className={`inline-block px-2 py-0.5 text-[11px] font-medium border ${sig.className}`}
-                        >
-                          {sig.label}
-                        </span>
+                      {/* Plain-English Smart Signal + Visible Actionable Guidance */}
+                      <td className="py-3 px-3 min-w-[220px] max-w-[270px]">
+                        <div className="flex flex-col items-start space-y-1">
+                          <span
+                            className={`inline-block px-2 py-0.5 text-[11px] font-medium border ${sig.className}`}
+                          >
+                            {sig.label}
+                          </span>
+                          <p className="text-[11px] leading-snug text-neutral-500">
+                            {sig.guidance}
+                          </p>
+                        </div>
                       </td>
 
                       {/* Views */}
