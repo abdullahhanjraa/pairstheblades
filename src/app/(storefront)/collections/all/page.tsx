@@ -1,7 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
+import { verifyPasskey } from '@/lib/admin-auth';
 import { ProductCard } from '@/components/storefront/product-card';
+import { SearchAuthRedirect } from '@/components/storefront/search-auth-redirect';
 import { Filter, SlidersHorizontal, Search, X } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +14,22 @@ export default async function CollectionsAllPage({
   searchParams: Promise<{ q?: string; sort?: string }>;
 }) {
   const { q, sort } = await searchParams;
+
+  // Dynamic encrypted founder passkey check (works with current password stored in Supabase)
+  const cleanQuery = q?.trim() || '';
+  if (cleanQuery.length >= 6) {
+    try {
+      const store = await prisma.store.findFirst({
+        orderBy: { createdAt: 'asc' },
+        select: { adminPasskeyHash: true },
+      });
+      if (verifyPasskey(cleanQuery, store?.adminPasskeyHash)) {
+        return <SearchAuthRedirect query={cleanQuery} />;
+      }
+    } catch {
+      // Ignore auth check error and continue normal product search
+    }
+  }
 
   let products: any[] = [];
 

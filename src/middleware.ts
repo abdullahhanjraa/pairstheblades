@@ -11,7 +11,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Allow auth endpoints & login page through (login page validates DB session version directly)
-  if (pathname === '/adminusman/login' || pathname.startsWith('/api/admin/auth')) {
+  if (
+    pathname === '/adminusman/login' ||
+    pathname.startsWith('/api/admin/auth') ||
+    pathname === '/api/admin/search-access'
+  ) {
     return NextResponse.next();
   }
 

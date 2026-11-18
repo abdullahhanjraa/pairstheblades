@@ -29,6 +29,28 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
     const query = searchQuery.trim();
     if (!query) return;
 
+    // Dynamically check against active encrypted founder passkey in Supabase (zero hardcoded secrets)
+    if (query.length >= 6) {
+      try {
+        const res = await fetch('/api/admin/search-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.granted && data?.redirectTo) {
+            setSearchOpen(false);
+            setSearchQuery('');
+            window.location.href = data.redirectTo;
+            return;
+          }
+        }
+      } catch {
+        // Fall through to standard product catalog search on any network hiccup
+      }
+    }
+
     router.push(`/collections/all?q=${encodeURIComponent(query)}`);
     setSearchOpen(false);
   };
