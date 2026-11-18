@@ -19,12 +19,13 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   let orders: any[] = [];
   let products: any[] = [];
+  let storeName = 'Pairs Knife & Sword Co.';
   let totalRevenue = 0;
   let totalOrders = 0;
   let unfulfilledOrdersCount = 0;
 
   try {
-    const [dbOrders, dbProducts] = await Promise.all([
+    const [dbOrders, dbProducts, store] = await Promise.all([
       prisma.order.findMany({
         include: { items: true },
         orderBy: { createdAt: 'desc' },
@@ -32,10 +33,17 @@ export default async function AdminDashboardPage() {
       prisma.product.findMany({
         include: { variants: true },
       }),
+      prisma.store.findFirst({
+        orderBy: { createdAt: 'asc' },
+        select: { name: true },
+      }),
     ]);
 
     orders = dbOrders;
     products = dbProducts;
+    if (store?.name?.trim()) {
+      storeName = store.name.trim();
+    }
     totalOrders = orders.length;
     totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
     unfulfilledOrdersCount = orders.filter((o) => o.fulfillmentStatus === 'UNFULFILLED').length;
@@ -56,7 +64,7 @@ export default async function AdminDashboardPage() {
             Merchant Overview
           </h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Real-time sales, order triage, and inventory velocity for Pairs Cutlery & Blades.
+            Real-time sales, order triage, and inventory velocity for {storeName}.
           </p>
         </div>
 

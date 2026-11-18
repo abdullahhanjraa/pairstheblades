@@ -170,7 +170,7 @@ export function Footer({
             </div>
           )}
           <div className="text-[11px] text-neutral-400">
-            &copy; {new Date().getFullYear()}, {legalName}. Powered by Apex Commerce.
+            &copy; {new Date().getFullYear()}, {legalName}. Powered by Abdullah Hanjra.
           </div>
         </div>
       </div>

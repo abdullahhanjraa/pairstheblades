@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     if (body?.confirmation !== 'RESET') {
       return NextResponse.json(
-        { error: 'Confirmation required: please type RESET to clear all test data.' },
+        { error: 'Confirmation required: please type RESET to clear all data.' },
         { status: 400 }
       );
     }
@@ -79,12 +79,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       cleared: result,
-      message: 'All test orders, revenue, and analytics data cleared. Store is ready for a fresh start.',
+      message: 'All orders, revenue, and analytics data cleared. Store is ready for a fresh start.',
     });
   } catch (err: any) {
-    console.error('Reset test data error:', err);
+    console.error('Reset data error:', err);
     return NextResponse.json(
-      { error: err.message || 'Failed to clear test data.' },
+      { error: err.message || 'Failed to clear store data.' },
       { status: 500 }
     );
   }

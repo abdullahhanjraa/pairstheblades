@@ -188,7 +188,9 @@ export async function POST(req: Request) {
 
     // Invalidate caches across the entire site
     revalidatePath('/', 'layout');
+    revalidatePath('/adminusman', 'layout');
     revalidatePath('/adminusman');
+    revalidatePath('/adminusman/login');
     revalidatePath('/adminusman/settings');
     revalidatePath('/checkout');
     revalidatePath('/collections/all');
@@ -198,7 +200,7 @@ export async function POST(req: Request) {
     revalidatePath('/policies/privacy-policy');
     revalidatePath('/policies/contact-information');
 
-    const { adminPasskeyHash: _hidden, ...safeStore } = store;
+    const { adminPasskeyHash: _hidden, adminSessionVersion: _ver, ...safeStore } = store;
     return NextResponse.json({ success: true, store: safeStore });
   } catch (err: any) {
     console.error('Settings save error:', err);

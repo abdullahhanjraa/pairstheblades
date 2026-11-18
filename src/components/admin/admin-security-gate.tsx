@@ -14,11 +14,13 @@ import {
 } from 'lucide-react';
 
 interface AdminSecurityGateProps {
+  storeName?: string;
   passwordChanged?: boolean;
   sessionExpired?: boolean;
 }
 
 export function AdminSecurityGate({
+  storeName,
   passwordChanged = false,
   sessionExpired = false,
 }: AdminSecurityGateProps) {
@@ -72,7 +74,7 @@ export function AdminSecurityGate({
               Security Gatekeeper
             </span>
             <h1 className="text-xl sm:text-2xl font-black uppercase tracking-[0.2em] text-white font-sans mt-1">
-              PAIRS DROP STUDIO
+              {storeName || 'Pairs Blades'}
             </h1>
           </div>
           <p className="text-xs text-neutral-400 leading-relaxed font-light">

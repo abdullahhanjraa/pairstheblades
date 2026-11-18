@@ -15,12 +15,17 @@ export default async function AdminLoginPage({
   const { passwordChanged, expired } = await searchParams;
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-  const verified = await verifySignedSessionToken(token);
+  const [verified, store] = await Promise.all([
+    verifySignedSessionToken(token),
+    prisma.store
+      .findFirst({
+        orderBy: { createdAt: 'asc' },
+        select: { name: true, adminSessionVersion: true },
+      })
+      .catch(() => null),
+  ]);
 
   if (verified.valid) {
-    const store = await prisma.store
-      .findFirst({ orderBy: { createdAt: 'asc' }, select: { adminSessionVersion: true } })
-      .catch(() => null);
     const activeVersion = store?.adminSessionVersion ?? 1;
 
     if (verified.version === activeVersion) {
@@ -30,6 +35,7 @@ export default async function AdminLoginPage({
 
   return (
     <AdminSecurityGate
+      storeName={store?.name || undefined}
       passwordChanged={passwordChanged === '1'}
       sessionExpired={expired === '1'}
     />

@@ -1,12 +1,28 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { CartProvider } from '@/lib/cart-context';
+import { prisma } from '@/lib/db';
 
-export const metadata: Metadata = {
-  title: 'Pairs Blades | Handcrafted Knives, Cutlery & Swords',
-  description:
-    'Master craftsmanship. Unrivaled edge retention. Premium handcrafted Damascus knives, chef cutlery, and swords with nationwide cash on delivery.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let storeName = 'Pairs Blades';
+  try {
+    const store = await prisma.store.findFirst({
+      orderBy: { createdAt: 'asc' },
+      select: { name: true },
+    });
+    if (store?.name?.trim()) {
+      storeName = store.name.trim();
+    }
+  } catch {
+    // Fallback to default brand title when DB is unreachable during static build
+  }
+
+  return {
+    title: `${storeName} | Handcrafted Knives, Cutlery & Swords`,
+    description:
+      'Master craftsmanship. Unrivaled edge retention. Premium handcrafted Damascus knives, chef cutlery, and swords with nationwide cash on delivery.',
+  };
+}
 
 export default function RootLayout({
   children,

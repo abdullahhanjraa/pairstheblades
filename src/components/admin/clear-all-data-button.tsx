@@ -29,10 +29,10 @@ export function ClearAllDataButton() {
         router.refresh();
         setTimeout(() => setDoneNotice(false), 4500);
       } else {
-        setErrorMsg(data.error || 'Could not clear test data. Please try again.');
+        setErrorMsg(data.error || 'Could not clear store data. Please try again.');
       }
     } catch {
-      setErrorMsg('Network error while clearing test data.');
+      setErrorMsg('Network error while clearing store data.');
     } finally {
       setIsClearing(false);
     }
@@ -58,7 +58,7 @@ export function ClearAllDataButton() {
             setIsOpen(true);
           }}
           className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white border border-neutral-300 text-neutral-700 text-xs font-semibold hover:border-red-300 hover:text-red-700 hover:bg-red-50/50 transition-colors cursor-pointer"
-          title="Clear all test orders, revenue, and analytics before handing the store to your client"
+          title="Clear all orders, revenue, and analytics for a fresh start"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>Clear All Data</span>
@@ -67,9 +67,9 @@ export function ClearAllDataButton() {
 
       <ConfirmDialog
         isOpen={isOpen}
-        title="Clear All Test Data (Fresh Start)"
-        message="This permanently clears all test Orders, Revenue history, Top Cities, Conversion Funnel visits, Product views/carts, and coupon usage counts so your client starts fresh at Rs. 0. Your Products, Photos, Stock, Store Settings, Pixels, and Admin Password stay 100% safe and untouched."
-        confirmText="Clear All Test Data"
+        title="Clear All Data (Fresh Start)"
+        message="This permanently clears all Orders, Revenue history, Top Cities, Conversion Funnel visits, Product views/carts, and coupon usage counts so the store starts fresh at Rs. 0. Your Products, Photos, Stock, Store Settings, Pixels, and Admin Password stay 100% safe and untouched."
+        confirmText="Clear All Data"
         cancelText="Cancel"
         variant="danger"
         requiredConfirmationText="RESET"
