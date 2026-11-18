@@ -19,6 +19,7 @@ import {
   Copy,
   Check,
   Building2,
+  Globe,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
@@ -57,7 +58,9 @@ export default function CheckoutPage() {
     });
   }, [items, subtotal]);
 
-  const [copiedField, setCopiedField] = useState<'iban' | 'account' | null>(null);
+  const [copiedField, setCopiedField] = useState<
+    'iban' | 'account' | 'payoneer' | 'paypal' | 'wise' | null
+  >(null);
 
   const [storeSettings, setStoreSettings] = useState({
     freeShippingThreshold: 5000.0,
@@ -73,13 +76,23 @@ export default function CheckoutPage() {
     bankBranch: 'Main Boulevard, Gujranwala',
     bankInstructions:
       'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to support.',
+    enableInternationalTransfer: true,
+    internationalTitle: 'International Transfer (Payoneer / PayPal / Wise)',
+    payoneerAccount: '',
+    paypalAccount: '',
+    wiseAccount: '',
+    internationalInstructions:
+      'Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp.',
     supportPhone: '+92 300 1234567',
     cardGatewayName: 'Visa / Mastercard Secure Gateway',
     cardInstructions: 'Instant checkout via 3D Secure card processing sandbox.',
     cardMode: 'SANDBOX',
   });
 
-  const handleCopy = (text: string, field: 'iban' | 'account') => {
+  const handleCopy = (
+    text: string,
+    field: 'iban' | 'account' | 'payoneer' | 'paypal' | 'wise'
+  ) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2500);
@@ -109,6 +122,18 @@ export default function CheckoutPage() {
             bankInstructions:
               s.bankInstructions ||
               'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to support.',
+            enableInternationalTransfer:
+              s.enableInternationalTransfer !== undefined
+                ? Boolean(s.enableInternationalTransfer)
+                : true,
+            internationalTitle:
+              s.internationalTitle || 'International Transfer (Payoneer / PayPal / Wise)',
+            payoneerAccount: s.payoneerAccount || '',
+            paypalAccount: s.paypalAccount || '',
+            wiseAccount: s.wiseAccount || '',
+            internationalInstructions:
+              s.internationalInstructions ||
+              'Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp.',
             supportPhone: s.supportPhone || '+92 300 1234567',
             cardGatewayName: s.cardGatewayName || 'Visa / Mastercard Secure Gateway',
             cardInstructions:
@@ -120,6 +145,8 @@ export default function CheckoutPage() {
           if (s.enableCod === false) {
             if (s.enableBankTransfer) {
               setFormData((prev) => ({ ...prev, paymentMethod: 'BANK_TRANSFER' }));
+            } else if (s.enableInternationalTransfer) {
+              setFormData((prev) => ({ ...prev, paymentMethod: 'INTERNATIONAL_TRANSFER' }));
             } else if (s.enableCard) {
               setFormData((prev) => ({ ...prev, paymentMethod: 'CARD' }));
             }
@@ -191,9 +218,9 @@ export default function CheckoutPage() {
     }
 
     const phoneDigits = formData.phone.replace(/\D/g, '');
-    if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
       setCheckoutError(
-        'Please enter a valid Pakistani contact phone number (e.g. 0321 1234567). Courier requires this to coordinate doorstep delivery.'
+        'Please enter a valid contact phone number (e.g. 0321 1234567 or international +1 / +44 number).'
       );
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -610,6 +637,153 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {/* International Transfer (Payoneer / PayPal / Wise) */}
+                  {storeSettings.enableInternationalTransfer && (
+                    <div
+                      className={`border transition-colors ${
+                        formData.paymentMethod === 'INTERNATIONAL_TRANSFER'
+                          ? 'border-black bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <label className="flex items-start p-4 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="INTERNATIONAL_TRANSFER"
+                          checked={formData.paymentMethod === 'INTERNATIONAL_TRANSFER'}
+                          onChange={() =>
+                            setFormData({
+                              ...formData,
+                              paymentMethod: 'INTERNATIONAL_TRANSFER',
+                            })
+                          }
+                          className="mt-0.5 text-black focus:ring-black"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center space-x-2">
+                            <Globe className="w-4 h-4 text-black" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-black">
+                              {storeSettings.internationalTitle ||
+                                'International Transfer (Payoneer / PayPal / Wise)'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">
+                            Pay internationally via Payoneer, PayPal, Wise, or SWIFT and share your receipt via WhatsApp.
+                          </p>
+                        </div>
+                      </label>
+
+                      {formData.paymentMethod === 'INTERNATIONAL_TRANSFER' && (
+                        <div className="mx-4 mb-4 p-4 bg-white border border-neutral-300 rounded-xs space-y-3 animate-in fade-in">
+                          {storeSettings.payoneerAccount.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  Payoneer Account / Email
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.payoneerAccount}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopy(storeSettings.payoneerAccount, 'payoneer')
+                                }
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'payoneer' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {storeSettings.paypalAccount.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  PayPal Email / PayPal.me
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.paypalAccount}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(storeSettings.paypalAccount, 'paypal')}
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'paypal' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {storeSettings.wiseAccount.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  Wise / SWIFT / International Bank
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.wiseAccount}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(storeSettings.wiseAccount, 'wise')}
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'wise' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {!storeSettings.payoneerAccount.trim() &&
+                            !storeSettings.paypalAccount.trim() &&
+                            !storeSettings.wiseAccount.trim() && (
+                              <div className="text-xs text-neutral-700 bg-neutral-50 p-3 border border-neutral-200">
+                                Place your order now and our team will share our verified Payoneer / PayPal / Wise payment details directly on WhatsApp ({storeSettings.supportPhone}).
+                              </div>
+                            )}
+
+                          <div className="pt-1 text-[11px] text-neutral-600 leading-normal bg-neutral-50 p-2.5 border border-neutral-200">
+                            <strong>Note:</strong> {storeSettings.internationalInstructions}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Card payment sandbox (if enabled in admin) */}
                   {storeSettings.enableCard && (
                     <div
@@ -678,7 +852,8 @@ export default function CheckoutPage() {
 
                   {!storeSettings.enableCod &&
                     !storeSettings.enableCard &&
-                    !storeSettings.enableBankTransfer && (
+                    !storeSettings.enableBankTransfer &&
+                    !storeSettings.enableInternationalTransfer && (
                       <div className="p-3 bg-red-50 text-red-700 text-xs">
                         No payment gateway currently active. Please contact merchant admin.
                       </div>

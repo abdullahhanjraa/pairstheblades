@@ -57,6 +57,7 @@ function humanizePaymentMethod(method: string, financialStatus?: string | null):
   const upper = (method || '').toUpperCase();
   if (upper === 'COD') return 'Cash on Delivery (COD)';
   if (upper === 'BANK_TRANSFER') return 'Bank Transfer / Raast';
+  if (upper === 'INTERNATIONAL_TRANSFER') return 'International Transfer (Payoneer / PayPal / Wise)';
   if (upper === 'CARD') {
     return financialStatus === 'PAID' ? 'Card Payment (Paid)' : 'Card Payment';
   }

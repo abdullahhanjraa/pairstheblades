@@ -29,6 +29,7 @@ import {
   EyeOff,
   Lock,
   Activity,
+  Globe,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import {
@@ -154,6 +155,15 @@ export function SettingsForm({
     bankInstructions:
       initialStore?.bankInstructions ??
       'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to +92 300 1234567',
+    enableInternationalTransfer: initialStore?.enableInternationalTransfer ?? true,
+    internationalTitle:
+      initialStore?.internationalTitle ?? 'International Transfer (Payoneer / PayPal / Wise)',
+    payoneerAccount: initialStore?.payoneerAccount ?? '',
+    paypalAccount: initialStore?.paypalAccount ?? '',
+    wiseAccount: initialStore?.wiseAccount ?? '',
+    internationalInstructions:
+      initialStore?.internationalInstructions ??
+      'Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp.',
     cardGatewayName:
       initialStore?.cardGatewayName ?? 'Visa / Mastercard Secure Gateway',
     cardInstructions:
@@ -1424,14 +1434,128 @@ export function SettingsForm({
                 </div>
               </div>
 
-              {/* 3. Credit / Debit Card (Visa / Mastercard) */}
+              {/* 3. International Transfer (Payoneer / PayPal / Wise) */}
+              <div className="p-5 border border-neutral-200 bg-white space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-4 h-4 text-black" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-black">
+                        3. International Transfer (Payoneer / PayPal / Wise)
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Accept overseas payments via Payoneer, PayPal, Wise, or SWIFT directly on checkout with one-click copy buttons.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={store.enableInternationalTransfer}
+                      onChange={(e) =>
+                        setStore({
+                          ...store,
+                          enableInternationalTransfer: e.target.checked,
+                        })
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <span className="ml-2 text-[11px] font-bold uppercase text-black">
+                      {store.enableInternationalTransfer ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Checkout Option Display Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="International Transfer (Payoneer / PayPal / Wise)"
+                      value={store.internationalTitle}
+                      onChange={(e) =>
+                        setStore({ ...store, internationalTitle: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Payoneer Account / Email
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. payments@pairstheblades.com"
+                      value={store.payoneerAccount}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerAccount: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      PayPal Email / PayPal.me Link
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. paypal.me/pairstheblades or email"
+                      value={store.paypalAccount}
+                      onChange={(e) =>
+                        setStore({ ...store, paypalAccount: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Wise / SWIFT / Other International Details (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Wise tag @pairstheblades or SWIFT / Western Union details"
+                      value={store.wiseAccount}
+                      onChange={(e) =>
+                        setStore({ ...store, wiseAccount: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      International Buyer Instructions
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp."
+                      value={store.internationalInstructions}
+                      onChange={(e) =>
+                        setStore({
+                          ...store,
+                          internationalInstructions: e.target.value,
+                        })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Credit / Debit Card (Visa / Mastercard) */}
               <div className="p-5 border border-neutral-200 bg-white space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
                       <CreditCard className="w-4 h-4 text-black" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-black">
-                        3. Credit / Debit Card (Visa / Mastercard)
+                        4. Credit / Debit Card (Visa / Mastercard)
                       </h3>
                     </div>
                     <p className="text-[11px] text-neutral-500">

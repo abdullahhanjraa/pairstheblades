@@ -91,6 +91,8 @@ export default async function OrderSuccessPage({
                 ? 'Cash on Delivery (Nationwide)'
                 : order?.paymentMethod === 'BANK_TRANSFER'
                 ? 'Direct Bank Transfer (Raast / IBAN)'
+                : order?.paymentMethod === 'INTERNATIONAL_TRANSFER'
+                ? store?.internationalTitle || 'International Transfer (Payoneer / PayPal / Wise)'
                 : 'Credit / Debit Card (Online)'}
             </p>
             <p className="text-neutral-600">
@@ -159,6 +161,75 @@ export default async function OrderSuccessPage({
               <a
                 href={`https://wa.me/${cleanWhatsAppPhone}?text=${encodeURIComponent(
                   `Hi ${store?.name || 'Pairs Knife & Sword Co.'}! Here is my payment receipt for Order #${order.orderNumber} (Rs. ${order.totalPrice}).`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider text-[11px] transition-colors whitespace-nowrap shadow-xs"
+              >
+                Send Receipt via WhatsApp
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* International Transfer Instructions Box */}
+        {order?.paymentMethod === 'INTERNATIONAL_TRANSFER' && (
+          <div className="bg-amber-50/80 border border-amber-200 p-5 rounded-xs space-y-3 text-xs">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+              <h3 className="font-bold uppercase tracking-wider text-black">
+                {store?.internationalTitle || 'International Transfer Instructions'}
+              </h3>
+            </div>
+            <p className="text-neutral-700 leading-relaxed font-light">
+              Please transfer the total order amount of{' '}
+              <strong className="text-black font-extrabold">{formatPKR(order.totalPrice)}</strong>{' '}
+              using one of the international transfer methods below:
+            </p>
+
+            {(store?.payoneerAccount?.trim() ||
+              store?.paypalAccount?.trim() ||
+              store?.wiseAccount?.trim()) ? (
+              <div className="bg-white p-3.5 border border-amber-200 font-mono text-xs space-y-2">
+                {store?.payoneerAccount?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Payoneer Account / Email:
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">{store.payoneerAccount}</span>
+                  </p>
+                )}
+                {store?.paypalAccount?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      PayPal Email / PayPal.me:
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">{store.paypalAccount}</span>
+                  </p>
+                )}
+                {store?.wiseAccount?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Wise / SWIFT / Other:
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">{store.wiseAccount}</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white p-3.5 border border-amber-200 text-xs text-neutral-700">
+                Tap the WhatsApp button below with your Order # to receive our live Payoneer / PayPal / Wise payment link immediately.
+              </div>
+            )}
+
+            <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <p className="text-[11px] text-neutral-600">
+                {store?.internationalInstructions ||
+                  'After transfer, share your payment receipt screenshot with your Order # on WhatsApp.'}
+              </p>
+              <a
+                href={`https://wa.me/${cleanWhatsAppPhone}?text=${encodeURIComponent(
+                  `Hi ${store?.name || 'Pairs Knife & Sword Co.'}! I placed Order #${order.orderNumber} (${formatPKR(order.totalPrice)}) via International Transfer (Payoneer / PayPal / Wise).`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
