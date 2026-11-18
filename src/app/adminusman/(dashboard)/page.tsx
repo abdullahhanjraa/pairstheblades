@@ -2,17 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { formatPKR } from '@/lib/formatters';
-import {
-  sanitizeMetaPixelId,
-  sanitizeTikTokPixelId,
-  sanitizeGa4Id,
-} from '@/lib/analytics';
-import {
-  AnalyticsDashboard,
-  type DailyMetricPoint,
-  type FunnelSnapshot,
-  type CityRanking,
-} from '@/components/admin/analytics-dashboard';
+import { getAdminAnalyticsSnapshot } from '@/lib/admin-analytics';
+import { AnalyticsDashboard } from '@/components/admin/analytics-dashboard';
 import {
   DollarSign,
   ShoppingBag,
@@ -24,50 +15,15 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-function toPktDateKey(date: Date): string {
-  // Shift UTC to PKT (UTC+5) for accurate Pakistan business day bucketing
-  const pkt = new Date(date.getTime() + 5 * 60 * 60 * 1000);
-  return pkt.toISOString().slice(0, 10);
-}
-
-function formatDayLabel(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-}
-
-function normalizeCityName(raw?: string | null): string {
-  const clean = (raw || '').trim();
-  if (!clean) return 'Other';
-  return clean
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
 export default async function AdminDashboardPage() {
   let orders: any[] = [];
   let products: any[] = [];
-  let analyticsEvents: Array<{
-    sessionId: string;
-    eventType: string;
-    createdAt: Date;
-  }> = [];
-  let storeMeta: {
-    metaPixelId: string;
-    tiktokPixelId: string;
-    ga4MeasurementId: string;
-  } | null = null;
-
   let totalRevenue = 0;
   let totalOrders = 0;
   let unfulfilledOrdersCount = 0;
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
   try {
-    const [dbOrders, dbProducts, dbEvents, dbStore] = await Promise.all([
+    const [dbOrders, dbProducts] = await Promise.all([
       prisma.order.findMany({
         include: { items: true },
         orderBy: { createdAt: 'desc' },
@@ -75,29 +31,10 @@ export default async function AdminDashboardPage() {
       prisma.product.findMany({
         include: { variants: true },
       }),
-      prisma.analyticsEvent
-        .findMany({
-          where: { createdAt: { gte: thirtyDaysAgo } },
-          select: { sessionId: true, eventType: true, createdAt: true },
-        })
-        .catch(() => []),
-      prisma.store
-        .findFirst({
-          orderBy: { createdAt: 'asc' },
-          select: {
-            metaPixelId: true,
-            tiktokPixelId: true,
-            ga4MeasurementId: true,
-          },
-        })
-        .catch(() => null),
     ]);
 
     orders = dbOrders;
     products = dbProducts;
-    analyticsEvents = dbEvents;
-    storeMeta = dbStore;
-
     totalOrders = orders.length;
     totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
     unfulfilledOrdersCount = orders.filter((o) => o.fulfillmentStatus === 'UNFULFILLED').length;
@@ -105,97 +42,9 @@ export default async function AdminDashboardPage() {
     console.error('Admin query error', err);
   }
 
+  const analyticsSnapshot = await getAdminAnalyticsSnapshot(orders);
   const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const recentOrders = orders.slice(0, 6);
-
-  // Build 30-day PKT daily revenue & order series
-  const dailyMap = new Map<string, DailyMetricPoint>();
-  const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const key = toPktDateKey(d);
-    if (!dailyMap.has(key)) {
-      dailyMap.set(key, {
-        dateKey: key,
-        label: formatDayLabel(key),
-        revenue: 0,
-        orders: 0,
-      });
-    }
-  }
-  for (const order of orders) {
-    const key = toPktDateKey(new Date(order.createdAt));
-    const bucket = dailyMap.get(key);
-    if (bucket) {
-      bucket.revenue += order.totalPrice;
-      bucket.orders += 1;
-    }
-  }
-  const dailySeries30 = Array.from(dailyMap.values());
-
-  // Build unique-session Conversion Funnels for 7d / 14d / 30d
-  const buildFunnel = (days: number): FunnelSnapshot => {
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const sets = {
-      PAGE_VIEW: new Set<string>(),
-      PRODUCT_VIEW: new Set<string>(),
-      ADD_TO_CART: new Set<string>(),
-      CHECKOUT_START: new Set<string>(),
-      PURCHASE: new Set<string>(),
-    };
-
-    for (const ev of analyticsEvents) {
-      if (new Date(ev.createdAt).getTime() < cutoff) continue;
-      const key = ev.eventType as keyof typeof sets;
-      if (sets[key]) {
-        sets[key].add(ev.sessionId);
-      }
-    }
-
-    const ordersInWindow = orders.filter(
-      (o) => new Date(o.createdAt).getTime() >= cutoff
-    ).length;
-
-    return {
-      visits: sets.PAGE_VIEW.size,
-      productViews: sets.PRODUCT_VIEW.size,
-      addToCart: sets.ADD_TO_CART.size,
-      checkoutStart: sets.CHECKOUT_START.size,
-      purchases: Math.max(sets.PURCHASE.size, ordersInWindow),
-    };
-  };
-
-  const funnels = {
-    '7d': buildFunnel(7),
-    '14d': buildFunnel(14),
-    '30d': buildFunnel(30),
-  };
-
-  // Top Cities in Pakistan ranked by total order revenue
-  const cityMap = new Map<string, CityRanking>();
-  for (const order of orders) {
-    const cityName = normalizeCityName(order.city);
-    const existing = cityMap.get(cityName);
-    if (existing) {
-      existing.orders += 1;
-      existing.revenue += order.totalPrice;
-    } else {
-      cityMap.set(cityName, {
-        city: cityName,
-        orders: 1,
-        revenue: order.totalPrice,
-      });
-    }
-  }
-  const topCities = Array.from(cityMap.values()).sort(
-    (a, b) => b.revenue - a.revenue || b.orders - a.orders
-  );
-
-  const pixelStatus = {
-    metaActive: Boolean(sanitizeMetaPixelId(storeMeta?.metaPixelId)),
-    tiktokActive: Boolean(sanitizeTikTokPixelId(storeMeta?.tiktokPixelId)),
-    ga4Active: Boolean(sanitizeGa4Id(storeMeta?.ga4MeasurementId)),
-  };
 
   return (
     <div className="space-y-8 text-left">
@@ -292,12 +141,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Storefront Conversion Funnel, 14-Day Revenue Chart & Top Cities in Pakistan */}
-      <AnalyticsDashboard
-        dailySeries30={dailySeries30}
-        funnels={funnels}
-        topCities={topCities}
-        pixelStatus={pixelStatus}
-      />
+      <AnalyticsDashboard initialSnapshot={analyticsSnapshot} />
 
       {/* Main Section: Recent Orders & Stock Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

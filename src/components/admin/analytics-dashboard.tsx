@@ -2,68 +2,118 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, RefreshCw, RotateCcw, Check } from 'lucide-react';
+import { ConfirmDialog } from '@/components/admin/confirm-dialog';
+import type { AdminAnalyticsSnapshot } from '@/lib/admin-analytics';
 
-export interface DailyMetricPoint {
-  dateKey: string; // YYYY-MM-DD
-  label: string;   // e.g. "Nov 18"
-  revenue: number;
-  orders: number;
-}
-
-export interface FunnelSnapshot {
-  visits: number;
-  productViews: number;
-  addToCart: number;
-  checkoutStart: number;
-  purchases: number;
-}
-
-export interface CityRanking {
-  city: string;
-  orders: number;
-  revenue: number;
-}
-
-export interface PixelStatusSummary {
-  metaActive: boolean;
-  tiktokActive: boolean;
-  ga4Active: boolean;
-}
+export type {
+  DailyMetricPoint,
+  FunnelSnapshot,
+  CityRanking,
+  PixelStatusSummary,
+  AdminAnalyticsSnapshot,
+} from '@/lib/admin-analytics';
 
 export interface AnalyticsDashboardProps {
-  dailySeries30: DailyMetricPoint[];
-  funnels: {
-    '7d': FunnelSnapshot;
-    '14d': FunnelSnapshot;
-    '30d': FunnelSnapshot;
-  };
-  topCities: CityRanking[];
-  pixelStatus: PixelStatusSummary;
+  initialSnapshot: AdminAnalyticsSnapshot;
 }
 
 function formatCompactPKR(amount: number): string {
   return `Rs. ${Math.round(amount).toLocaleString('en-PK')}`;
 }
 
-function pct(part: number, whole: number): string {
-  if (whole <= 0) return '0%';
-  const val = (part / whole) * 100;
-  return val >= 10 ? `${Math.round(val)}%` : `${val.toFixed(1)}%`;
+function formatRate(part: number, whole: number): string {
+  if (whole <= 0) return '—';
+  const clamped = Math.min(100, Math.max(0, (part / whole) * 100));
+  if (clamped === 0) return '0%';
+  if (clamped === 100) return '100%';
+  return `${clamped.toFixed(1)}%`;
 }
 
-export function AnalyticsDashboard({
-  dailySeries30,
-  funnels,
-  topCities,
-  pixelStatus,
-}: AnalyticsDashboardProps) {
+function formatPktTimestamp(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'Asia/Karachi',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatPktTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Asia/Karachi',
+    });
+  } catch {
+    return '';
+  }
+}
+
+export function AnalyticsDashboard({ initialSnapshot }: AnalyticsDashboardProps) {
+  const [snapshot, setSnapshot] = useState<AdminAnalyticsSnapshot>(initialSnapshot);
   const [range, setRange] = useState<'7d' | '14d' | '30d'>('14d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setStatusNotice(null);
+    try {
+      const res = await fetch('/api/admin/analytics', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const fresh = (await res.json()) as AdminAnalyticsSnapshot;
+        setSnapshot(fresh);
+        setStatusNotice(`Updated ${formatPktTime(fresh.generatedAt)}`);
+        setTimeout(() => setStatusNotice(null), 3500);
+      }
+    } catch (err) {
+      console.error('Analytics refresh error:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleConfirmResetFunnel = async () => {
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/admin/analytics', {
+        method: 'DELETE',
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.snapshot) {
+          setSnapshot(data.snapshot);
+        }
+        setConfirmResetOpen(false);
+        setStatusNotice('Funnel reset to zero');
+        setTimeout(() => setStatusNotice(null), 4000);
+      }
+    } catch (err) {
+      console.error('Analytics reset error:', err);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const daysCount = range === '7d' ? 7 : range === '14d' ? 14 : 30;
-  const activeSeries = dailySeries30.slice(-daysCount);
-  const activeFunnel = funnels[range];
+  const activeSeries = snapshot.dailySeries30.slice(-daysCount);
+  const activeFunnel = snapshot.funnels[range];
 
   const periodRevenue = activeSeries.reduce((s, d) => s + d.revenue, 0);
   const periodOrders = activeSeries.reduce((s, d) => s + d.orders, 0);
@@ -83,7 +133,6 @@ export function AnalyticsDashboard({
 
   const hoveredPoint = hoveredIndex !== null ? activeSeries[hoveredIndex] : null;
 
-  // Funnel stages (ordered high-to-low)
   const funnelBase = Math.max(
     activeFunnel.visits,
     activeFunnel.productViews,
@@ -102,44 +151,38 @@ export function AnalyticsDashboard({
     {
       label: 'Viewed blades',
       count: activeFunnel.productViews,
-      stepRate: activeFunnel.visits > 0 ? pct(activeFunnel.productViews, activeFunnel.visits) : null,
+      stepRate: formatRate(activeFunnel.productViews, activeFunnel.visits),
     },
     {
       label: 'Added to cart',
       count: activeFunnel.addToCart,
-      stepRate:
-        activeFunnel.productViews > 0
-          ? pct(activeFunnel.addToCart, activeFunnel.productViews)
-          : null,
+      stepRate: formatRate(
+        activeFunnel.addToCart,
+        Math.max(activeFunnel.productViews, activeFunnel.addToCart > 0 ? activeFunnel.visits : 0)
+      ),
     },
     {
       label: 'Started checkout',
       count: activeFunnel.checkoutStart,
-      stepRate:
-        activeFunnel.addToCart > 0
-          ? pct(activeFunnel.checkoutStart, activeFunnel.addToCart)
-          : null,
+      stepRate: formatRate(activeFunnel.checkoutStart, activeFunnel.addToCart),
     },
     {
       label: 'Orders placed',
       count: activeFunnel.purchases,
-      stepRate:
-        activeFunnel.checkoutStart > 0
-          ? pct(activeFunnel.purchases, activeFunnel.checkoutStart)
-          : null,
+      stepRate: formatRate(activeFunnel.purchases, activeFunnel.checkoutStart),
       accent: true,
     },
   ];
 
   const overallConversion =
-    activeFunnel.visits > 0 ? pct(activeFunnel.purchases, activeFunnel.visits) : '0%';
+    activeFunnel.visits > 0 ? formatRate(activeFunnel.purchases, activeFunnel.visits) : '0%';
 
-  const maxCityRevenue = Math.max(...topCities.map((c) => c.revenue), 1);
+  const maxCityRevenue = Math.max(...snapshot.topCities.map((c) => c.revenue), 1);
 
   return (
     <section className="space-y-6">
       {/* Section Control Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center flex-wrap gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">
             Storefront analytics &amp; conversion funnel
@@ -154,7 +197,7 @@ export function AnalyticsDashboard({
             <span className="inline-flex items-center space-x-1">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  pixelStatus.metaActive ? 'bg-emerald-600' : 'bg-neutral-300'
+                  snapshot.pixelStatus.metaActive ? 'bg-emerald-600' : 'bg-neutral-300'
                 }`}
               />
               <span>Meta</span>
@@ -162,7 +205,7 @@ export function AnalyticsDashboard({
             <span className="inline-flex items-center space-x-1">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  pixelStatus.tiktokActive ? 'bg-emerald-600' : 'bg-neutral-300'
+                  snapshot.pixelStatus.tiktokActive ? 'bg-emerald-600' : 'bg-neutral-300'
                 }`}
               />
               <span>TikTok</span>
@@ -170,43 +213,64 @@ export function AnalyticsDashboard({
             <span className="inline-flex items-center space-x-1">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  pixelStatus.ga4Active ? 'bg-emerald-600' : 'bg-neutral-300'
+                  snapshot.pixelStatus.ga4Active ? 'bg-emerald-600' : 'bg-neutral-300'
                 }`}
               />
               <span>GA4</span>
             </span>
             <ArrowUpRight className="w-3 h-3 text-neutral-400" />
           </Link>
+
+          {statusNotice && (
+            <span className="inline-flex items-center space-x-1 text-[11px] font-medium text-emerald-700 tabular-nums">
+              <Check className="w-3 h-3" />
+              <span>{statusNotice}</span>
+            </span>
+          )}
         </div>
 
-        {/* Range Switcher (7D / 14D / 30D) */}
-        <div className="inline-flex items-center bg-white border border-neutral-200 p-0.5 self-start sm:self-auto">
-          {(
-            [
-              { id: '7d', label: '7 days' },
-              { id: '14d', label: '14 days' },
-              { id: '30d', label: '30 days' },
-            ] as const
-          ).map((item) => {
-            const active = range === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setRange(item.id);
-                  setHoveredIndex(null);
-                }}
-                className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                  active
-                    ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+        {/* Right Controls: Live Refresh + Range Switcher */}
+        <div className="flex items-center flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-60 transition-colors cursor-pointer"
+            title="Fetch latest storefront visits, funnel counts, and orders instantly"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
+          </button>
+
+          {/* Range Switcher (7D / 14D / 30D) */}
+          <div className="inline-flex items-center bg-white border border-neutral-200 p-0.5">
+            {(
+              [
+                { id: '7d', label: '7 days' },
+                { id: '14d', label: '14 days' },
+                { id: '30d', label: '30 days' },
+              ] as const
+            ).map((item) => {
+              const active = range === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setRange(item.id);
+                    setHoveredIndex(null);
+                  }}
+                  className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -247,7 +311,6 @@ export function AnalyticsDashboard({
               aria-label={`Daily revenue chart for the last ${daysCount} days`}
               onMouseLeave={() => setHoveredIndex(null)}
             >
-              {/* Horizontal muted gridlines */}
               {[0, 0.33, 0.66, 1].map((ratio) => {
                 const y = padTop + plotH * (1 - ratio);
                 return (
@@ -264,7 +327,6 @@ export function AnalyticsDashboard({
                 );
               })}
 
-              {/* Daily Bars */}
               {activeSeries.map((point, i) => {
                 const cx = padLeft + i * slotW + slotW / 2;
                 const x = cx - barW / 2;
@@ -273,7 +335,6 @@ export function AnalyticsDashboard({
                 const y = padTop + plotH - h;
                 const isHovered = hoveredIndex === i;
 
-                // Show clean evenly spaced date labels without crowding
                 const labelStep = daysCount === 30 ? 5 : daysCount === 14 ? 2 : 1;
                 const showLabel = i % labelStep === 0 || i === activeSeries.length - 1;
 
@@ -283,7 +344,6 @@ export function AnalyticsDashboard({
                     className="cursor-pointer"
                     onMouseEnter={() => setHoveredIndex(i)}
                   >
-                    {/* Invisible wider hover hit column */}
                     <rect
                       x={padLeft + i * slotW}
                       y={padTop}
@@ -334,13 +394,13 @@ export function AnalyticsDashboard({
               <span className="text-[11px] text-neutral-400">By order revenue</span>
             </div>
 
-            {topCities.length === 0 ? (
+            {snapshot.topCities.length === 0 ? (
               <p className="py-10 text-center text-xs text-neutral-400">
                 City rankings appear once orders are placed.
               </p>
             ) : (
               <div className="mt-4 space-y-3.5">
-                {topCities.slice(0, 6).map((row) => {
+                {snapshot.topCities.slice(0, 6).map((row) => {
                   const widthPct = Math.max(6, Math.round((row.revenue / maxCityRevenue) * 100));
                   return (
                     <div key={row.city} className="space-y-1.5">
@@ -359,7 +419,7 @@ export function AnalyticsDashboard({
                       </div>
                       <div className="w-full h-1.5 bg-neutral-100 overflow-hidden">
                         <div
-                          className="h-full bg-neutral-900"
+                          className="h-full bg-neutral-900 transition-[width] duration-300 ease-out"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
@@ -378,20 +438,40 @@ export function AnalyticsDashboard({
 
       {/* 5-Stage Conversion Funnel */}
       <div className="bg-white border border-neutral-200 p-5">
-        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-neutral-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
           <div>
-            <h3 className="text-xs font-semibold text-neutral-900">
-              Conversion funnel (unique sessions · last {daysCount} days)
-            </h3>
+            <div className="flex items-center flex-wrap gap-2">
+              <h3 className="text-xs font-semibold text-neutral-900">
+                Conversion funnel (unique sessions · last {daysCount} days)
+              </h3>
+              {snapshot.funnelResetAt && (
+                <span className="text-[11px] font-mono text-neutral-400">
+                  Fresh since {formatPktTimestamp(snapshot.funnelResetAt)}
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-neutral-500 mt-0.5">
-              Tracks where shoppers engage and where they drop off before placing an order.
+              Deduplicated 30-minute shopper sessions with automated bot filtering.
             </p>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-[11px] text-neutral-500">Store conversion rate</span>
-            <span className="text-base font-semibold text-emerald-700 tabular-nums">
-              {overallConversion}
-            </span>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-baseline space-x-2">
+              <span className="text-[11px] text-neutral-500">Store conversion rate</span>
+              <span className="text-base font-semibold text-emerald-700 tabular-nums">
+                {overallConversion}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setConfirmResetOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-2.5 py-1 border border-neutral-200 text-[11px] font-medium text-neutral-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50/50 transition-colors cursor-pointer"
+              title="Reset conversion funnel counters to zero and start fresh (orders stay safe)"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset funnel</span>
+            </button>
           </div>
         </div>
 
@@ -423,7 +503,9 @@ export function AnalyticsDashboard({
                   </span>
                   <div className="w-full h-1.5 bg-neutral-200/70 overflow-hidden">
                     <div
-                      className={`h-full ${stage.accent ? 'bg-emerald-700' : 'bg-neutral-900'}`}
+                      className={`h-full transition-[width] duration-300 ease-out ${
+                        stage.accent ? 'bg-emerald-700' : 'bg-neutral-900'
+                      }`}
                       style={{ width: `${barPct}%` }}
                     />
                   </div>
@@ -433,6 +515,19 @@ export function AnalyticsDashboard({
           })}
         </div>
       </div>
+
+      {/* Confirmation Dialog for Safe Fresh-Start Funnel Reset */}
+      <ConfirmDialog
+        isOpen={confirmResetOpen}
+        title="Reset Conversion Funnel"
+        message="This resets all 5 funnel counters (Store visits, Viewed blades, Added to cart, Started checkout, and funnel Orders placed) to zero so you can start tracking fresh. Your real customer Orders, Revenue, and Top Cities will NOT be deleted."
+        confirmText="Reset to Zero"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isResetting}
+        onConfirm={handleConfirmResetFunnel}
+        onClose={() => setConfirmResetOpen(false)}
+      />
     </section>
   );
 }

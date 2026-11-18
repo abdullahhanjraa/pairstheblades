@@ -11,8 +11,17 @@ const ALLOWED_EVENTS = new Set([
   'PURCHASE',
 ]);
 
+// Filter automated crawlers, headless previewers, and link scrapers so visitor counts stay 100% honest
+const BOT_USER_AGENT_PATTERN =
+  /bot|crawler|spider|slurp|mediapartners|headlesschrome|lighthouse|pagespeed|vercel|whatsapp|facebookexternalhit|facebot|slackbot|twitterbot|telegrambot|discordbot|linkedinbot|pinterest|preview|curl|wget|playwright|puppeteer|python-requests|go-http-client|axios/i;
+
 export async function POST(req: Request) {
   try {
+    const userAgent = req.headers.get('user-agent') || '';
+    if (userAgent && BOT_USER_AGENT_PATTERN.test(userAgent)) {
+      return NextResponse.json({ ok: true, filtered: true });
+    }
+
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ ok: true });

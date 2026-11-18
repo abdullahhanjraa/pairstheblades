@@ -96,6 +96,7 @@ model Store {
   metaPixelId           String    @default("")
   tiktokPixelId         String    @default("")
   ga4MeasurementId      String    @default("")
+  funnelResetAt         DateTime?
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

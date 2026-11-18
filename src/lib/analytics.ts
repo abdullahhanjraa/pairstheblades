@@ -45,22 +45,75 @@ export function sanitizeGa4Id(raw?: string | null): string {
   return /^G-[A-Z0-9]{4,20}$/.test(clean) ? clean : '';
 }
 
-const SESSION_KEY = 'pairs_analytics_sid';
+const SESSION_STORAGE_KEY = 'pairs_analytics_session_v2';
+const DEDUPE_STORAGE_KEY = 'pairs_analytics_sent_v2';
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute sliding cross-tab session (Shopify/GA4 standard)
 
+function generateSessionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Cross-tab 30-minute sliding session stored in localStorage so opening multiple tabs
+ * in the same browser counts as 1 honest shopper visit instead of inflated duplicates.
+ */
 export function getOrCreateSessionId(): string {
   if (typeof window === 'undefined') return 'server';
+  const now = Date.now();
   try {
-    let sid = window.sessionStorage.getItem(SESSION_KEY);
-    if (!sid) {
-      sid =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-      window.sessionStorage.setItem(SESSION_KEY, sid);
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { id?: string; lastSeen?: number };
+      if (parsed?.id && typeof parsed.lastSeen === 'number' && now - parsed.lastSeen < SESSION_TIMEOUT_MS) {
+        window.localStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({ id: parsed.id, lastSeen: now })
+        );
+        return parsed.id;
+      }
     }
-    return sid;
+    const freshId = generateSessionId();
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ id: freshId, lastSeen: now })
+    );
+    // New session starts with a fresh dedupe bucket
+    window.localStorage.removeItem(DEDUPE_STORAGE_KEY);
+    return freshId;
   } catch {
-    return `s_${Date.now()}`;
+    return generateSessionId();
+  }
+}
+
+/**
+ * Prevents redundant identical DB writes within the same 30-minute session
+ * (e.g. refreshing the homepage 5 times writes 1 clean PAGE_VIEW instead of 5).
+ */
+function shouldSendFirstPartyBeacon(
+  sessionId: string,
+  eventType: FunnelEventType,
+  dedupeTarget: string
+): boolean {
+  if (eventType === 'PURCHASE') return true;
+  try {
+    const raw = window.localStorage.getItem(DEDUPE_STORAGE_KEY);
+    const cache: { sid?: string; keys?: string[] } = raw ? JSON.parse(raw) : {};
+    const keys = cache.sid === sessionId && Array.isArray(cache.keys) ? cache.keys : [];
+    const compositeKey = `${eventType}:${dedupeTarget}`;
+    if (keys.includes(compositeKey)) {
+      return false;
+    }
+    const nextKeys = [...keys.slice(-60), compositeKey];
+    window.localStorage.setItem(
+      DEDUPE_STORAGE_KEY,
+      JSON.stringify({ sid: sessionId, keys: nextKeys })
+    );
+    return true;
+  } catch {
+    return true;
   }
 }
 
@@ -72,8 +125,22 @@ function sendFirstPartyBeacon(
   const path = payload.path || window.location.pathname;
   if (path.startsWith('/adminusman') || path.startsWith('/admin')) return;
 
+  const sessionId = getOrCreateSessionId();
+  const dedupeTarget =
+    eventType === 'PRODUCT_VIEW'
+      ? payload.productId || path
+      : eventType === 'ADD_TO_CART'
+      ? payload.productId || 'cart'
+      : eventType === 'CHECKOUT_START'
+      ? 'checkout'
+      : path;
+
+  if (!shouldSendFirstPartyBeacon(sessionId, eventType, dedupeTarget)) {
+    return;
+  }
+
   const body = JSON.stringify({
-    sessionId: getOrCreateSessionId(),
+    sessionId,
     eventType,
     path: path.slice(0, 200),
     productId: payload.productId?.slice(0, 64),
@@ -229,7 +296,7 @@ function fireBrowserPixels(
 /**
  * Fires unified storefront conversion tracking to:
  *  - Meta Pixel, TikTok Pixel, and GA4 (when configured in Admin Settings)
- *  - First-party Supabase Conversion Funnel via non-blocking sendBeacon
+ *  - First-party Supabase Conversion Funnel via deduplicated non-blocking sendBeacon
  */
 export function trackStoreEvent(
   eventType: FunnelEventType,
