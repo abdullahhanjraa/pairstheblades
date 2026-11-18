@@ -11,7 +11,13 @@ export async function GET() {
   try {
     const store = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!store) return NextResponse.json({ store: null });
-    const { adminPasskeyHash: _hidden, adminSessionVersion: _ver, ...safeStore } = store;
+    const {
+      adminPasskeyHash: _hidden,
+      adminSessionVersion: _ver,
+      whatsappAgentToken: _waToken,
+      whatsappAgentRecipientId: _waRecipient,
+      ...safeStore
+    } = store;
     return NextResponse.json({ store: safeStore });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -200,7 +206,13 @@ export async function POST(req: Request) {
     revalidatePath('/policies/privacy-policy');
     revalidatePath('/policies/contact-information');
 
-    const { adminPasskeyHash: _hidden, adminSessionVersion: _ver, ...safeStore } = store;
+    const {
+      adminPasskeyHash: _hidden,
+      adminSessionVersion: _ver,
+      whatsappAgentToken: _waToken,
+      whatsappAgentRecipientId: _waRecipient,
+      ...safeStore
+    } = store;
     return NextResponse.json({ success: true, store: safeStore });
   } catch (err: any) {
     console.error('Settings save error:', err);

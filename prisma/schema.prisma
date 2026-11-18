@@ -98,6 +98,12 @@ model Store {
   ga4MeasurementId      String    @default("")
   funnelResetAt         DateTime?
 
+  // WhatsApp Agent Order Alerts (Official WhatsApp Agent Platform API)
+  whatsappAgentEnabled     Boolean   @default(false)
+  whatsappAgentToken       String?
+  whatsappAgentRecipientId String?
+  whatsappAgentUserName    String?
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

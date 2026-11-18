@@ -1,5 +1,6 @@
 import React from 'react';
 import { prisma } from '@/lib/db';
+import { maskWhatsAppAgentToken } from '@/lib/whatsapp-agent';
 import { SettingsForm } from './settings-form';
 
 export const dynamic = 'force-dynamic';
@@ -8,12 +9,30 @@ export default async function AdminSettingsPage() {
   let store: any = null;
   let discounts: any[] = [];
   let hasCustomPassword = false;
+  let whatsappAgentStatus = {
+    connected: false,
+    enabled: false,
+    userName: null as string | null,
+    maskedToken: null as string | null,
+  };
 
   try {
-    const rawStore = await prisma.store.findFirst();
+    const rawStore = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
     if (rawStore) {
       hasCustomPassword = Boolean(rawStore.adminPasskeyHash);
-      const { adminPasskeyHash: _hidden, ...safeStore } = rawStore;
+      whatsappAgentStatus = {
+        connected: Boolean(rawStore.whatsappAgentToken && rawStore.whatsappAgentRecipientId),
+        enabled: Boolean(rawStore.whatsappAgentEnabled),
+        userName: rawStore.whatsappAgentUserName ?? null,
+        maskedToken: maskWhatsAppAgentToken(rawStore.whatsappAgentToken),
+      };
+      const {
+        adminPasskeyHash: _hidden,
+        adminSessionVersion: _ver,
+        whatsappAgentToken: _waToken,
+        whatsappAgentRecipientId: _waRecipient,
+        ...safeStore
+      } = rawStore;
       store = safeStore;
     }
     discounts = await prisma.discount.findMany({
@@ -30,7 +49,7 @@ export default async function AdminSettingsPage() {
           Store & Platform Settings
         </h1>
         <p className="text-xs text-neutral-500 mt-1">
-          Master control panel: customize live homepage banners, delivery rates, payment gateways, coupons, and security password.
+          Master control panel: customize live homepage banners, delivery rates, payment gateways, coupons, WhatsApp order alerts, and security password.
         </p>
       </div>
 
@@ -38,6 +57,7 @@ export default async function AdminSettingsPage() {
         initialStore={store}
         initialDiscounts={discounts}
         initialHasCustomPassword={hasCustomPassword}
+        initialWhatsAppAgentStatus={whatsappAgentStatus}
       />
     </div>
   );

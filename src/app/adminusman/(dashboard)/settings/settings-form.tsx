@@ -31,18 +31,29 @@ import {
   Activity,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
+import {
+  WhatsAppAgentSettings,
+  type WhatsAppAgentStatus,
+} from '@/components/admin/whatsapp-agent-settings';
 import { validateHeroBanner } from '@/lib/image-validator';
 
 interface SettingsFormProps {
   initialStore: any;
   initialDiscounts: any[];
   initialHasCustomPassword?: boolean;
+  initialWhatsAppAgentStatus?: WhatsAppAgentStatus;
 }
 
 export function SettingsForm({
   initialStore,
   initialDiscounts,
   initialHasCustomPassword = false,
+  initialWhatsAppAgentStatus = {
+    connected: false,
+    enabled: false,
+    userName: null,
+    maskedToken: null,
+  },
 }: SettingsFormProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
@@ -54,6 +65,7 @@ export function SettingsForm({
     | 'discounts'
     | 'policies'
     | 'pixels'
+    | 'alerts'
     | 'security'
   >('general');
 
@@ -446,6 +458,7 @@ export function SettingsForm({
     { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
     { id: 'policies', label: 'Store Policies & Content', icon: FileText },
     { id: 'pixels', label: 'Pixels & Tracking', icon: Activity },
+    { id: 'alerts', label: 'WhatsApp Alerts', icon: MessageCircle },
     { id: 'security', label: 'Security & Password', icon: Shield },
   ] as const;
 
@@ -477,6 +490,11 @@ export function SettingsForm({
             <span className="px-3 py-1.5 bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-bold uppercase tracking-wider flex items-center space-x-1.5">
               <Shield className="w-3.5 h-3.5 text-black" />
               <span>Security Tab Active — Use Update Password Below</span>
+            </span>
+          ) : activeTab === 'alerts' ? (
+            <span className="px-3 py-1.5 bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <MessageCircle className="w-3.5 h-3.5 text-black" />
+              <span>WhatsApp Alerts — Connect or Test Below</span>
             </span>
           ) : (
             <button
@@ -2320,7 +2338,15 @@ export function SettingsForm({
           </div>
         )}
 
-        {/* TAB 9: SECURITY & MASTER PASSWORD */}
+        {/* TAB 9: WHATSAPP AGENT ORDER ALERTS */}
+        {activeTab === 'alerts' && (
+          <WhatsAppAgentSettings
+            initialStatus={initialWhatsAppAgentStatus}
+            storeName={store.name}
+          />
+        )}
+
+        {/* TAB 10: SECURITY & MASTER PASSWORD */}
         {activeTab === 'security' && (
           <div className="space-y-6 max-w-2xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200">

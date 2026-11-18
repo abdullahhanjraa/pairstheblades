@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
+import { notifyOwnerOfNewOrder } from '@/lib/whatsapp-agent';
 
 class CheckoutValidationError extends Error {
   status: number;
@@ -402,6 +403,46 @@ export async function POST(req: Request) {
           },
         })
         .catch(() => {});
+
+      // Trigger automatic WhatsApp Agent order alert after checkout response (non-blocking, zero latency)
+      let siteOrigin: string | undefined;
+      try {
+        const reqUrl = new URL(req.url);
+        siteOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
+      } catch {
+        siteOrigin = undefined;
+      }
+
+      const alertOrderPayload = {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        shippingAddress: order.shippingAddress,
+        city: order.city,
+        province: order.province,
+        postalCode: order.postalCode,
+        subtotalPrice: order.subtotalPrice,
+        shippingPrice: order.shippingPrice,
+        totalPrice: order.totalPrice,
+        paymentMethod: order.paymentMethod,
+        financialStatus: order.financialStatus,
+        notes: order.notes,
+        items: order.items.map((i) => ({
+          title: i.title,
+          variantTitle: i.variantTitle,
+          quantity: i.quantity,
+          price: i.price,
+        })),
+      };
+
+      try {
+        after(async () => {
+          await notifyOwnerOfNewOrder(alertOrderPayload, siteOrigin);
+        });
+      } catch {
+        // Fallback if after() is unavailable in a non-request test harness
+        void notifyOwnerOfNewOrder(alertOrderPayload, siteOrigin);
+      }
 
       return {
         success: true,
