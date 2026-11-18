@@ -67,6 +67,9 @@ export async function POST(req: Request) {
       freeShippingThreshold,
       shippingFee,
       estimatedDeliveryDays,
+      internationalShippingFee,
+      internationalDeliveryDays,
+      internationalMarkupPercent,
       enableCod,
       enableCard,
       codNotice,
@@ -169,6 +172,16 @@ export async function POST(req: Request) {
       }),
       ...(shippingFee !== undefined && { shippingFee: Number(shippingFee) }),
       ...(estimatedDeliveryDays !== undefined && { estimatedDeliveryDays }),
+      ...(internationalShippingFee !== undefined && {
+        internationalShippingFee: Math.max(0, Number(internationalShippingFee) || 0),
+      }),
+      ...(internationalDeliveryDays !== undefined && { internationalDeliveryDays }),
+      ...(internationalMarkupPercent !== undefined && {
+        internationalMarkupPercent: Math.min(
+          200,
+          Math.max(0, Number(internationalMarkupPercent) || 0)
+        ),
+      }),
       ...(enableCod !== undefined && { enableCod: Boolean(enableCod) }),
       ...(enableCard !== undefined && { enableCard: Boolean(enableCard) }),
       ...(codNotice !== undefined && { codNotice }),

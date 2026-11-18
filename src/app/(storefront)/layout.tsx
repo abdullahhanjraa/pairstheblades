@@ -36,6 +36,10 @@ export default async function StorefrontLayout({
   const logoText = store?.logoText || 'PAIRS';
   const freeShippingThreshold = store?.freeShippingThreshold ?? 5000.0;
   const shippingFee = store?.shippingFee ?? 250.0;
+  const internationalShippingFee = store?.internationalShippingFee ?? 7000.0;
+  const internationalDeliveryDays =
+    store?.internationalDeliveryDays || '5-9 Business Days (DHL / FedEx)';
+  const internationalMarkupPercent = store?.internationalMarkupPercent ?? 25.0;
 
   // Granular Social Toggles
   const enableSocialLinks = store?.enableSocialLinks ?? true;
@@ -59,6 +63,7 @@ export default async function StorefrontLayout({
       initialCurrency={currencyState.currency}
       detectedCurrency={currencyState.detectedCurrency}
       initialRates={currencyState.rates}
+      internationalMarkupPercent={internationalMarkupPercent}
     >
       <div className="flex flex-col min-h-screen">
         <AnnouncementBar text={announcement} enabled={enableAnnouncement} />
@@ -66,6 +71,8 @@ export default async function StorefrontLayout({
         <CartDrawer
           freeShippingThreshold={freeShippingThreshold}
           shippingFee={shippingFee}
+          internationalShippingFee={internationalShippingFee}
+          internationalDeliveryDays={internationalDeliveryDays}
         />
         <main className="flex-1">{children}</main>
         <Footer

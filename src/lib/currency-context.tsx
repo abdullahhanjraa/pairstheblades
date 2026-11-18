@@ -9,14 +9,24 @@ import {
   type CurrencyCode,
   type ExchangeRatesMap,
 } from '@/lib/currency';
+import { applyZoneUnitPrice, clampMarkupPercent } from '@/lib/pricing-zone';
 
 interface CurrencyContextValue {
   currency: CurrencyCode;
   detectedCurrency: CurrencyCode;
   rates: ExchangeRatesMap;
   isInternational: boolean;
+  internationalMarkupPercent: number;
   setCurrency: (code: CurrencyCode) => void;
-  formatPrice: (pkrAmount: number, overrideCurrency?: CurrencyCode) => string;
+  /** Returns base PKR price adjusted for active zone (applies international markup if overseas). */
+  getAdjustedUnitPrice: (basePkrPrice: number) => number;
+  /** Formats a catalog product PKR price (automatically applies international margin when overseas). */
+  formatPrice: (basePkrPrice: number, overrideCurrency?: CurrencyCode) => string;
+  /** Formats an already-adjusted PKR amount (shipping fees, already-adjusted subtotals/totals) without applying product markup again. */
+  formatRawPrice: (pkrAmount: number, overrideCurrency?: CurrencyCode) => string;
+  /** Converts an already-adjusted PKR amount into numeric target currency without double-markup. */
+  convertRawAmount: (pkrAmount: number, overrideCurrency?: CurrencyCode) => number;
+  /** Alias for convertRawAmount kept for convenience. */
   convertAmount: (pkrAmount: number, overrideCurrency?: CurrencyCode) => number;
 }
 
@@ -25,8 +35,12 @@ const CurrencyContext = createContext<CurrencyContextValue>({
   detectedCurrency: 'PKR',
   rates: FALLBACK_RATES_FROM_PKR,
   isInternational: false,
+  internationalMarkupPercent: 0,
   setCurrency: () => {},
+  getAdjustedUnitPrice: (amount) => amount,
   formatPrice: (amount) => formatMoney(amount, 'PKR', FALLBACK_RATES_FROM_PKR),
+  formatRawPrice: (amount) => formatMoney(amount, 'PKR', FALLBACK_RATES_FROM_PKR),
+  convertRawAmount: (amount) => amount,
   convertAmount: (amount) => amount,
 });
 
@@ -34,6 +48,7 @@ interface CurrencyProviderProps {
   initialCurrency: CurrencyCode;
   detectedCurrency: CurrencyCode;
   initialRates: ExchangeRatesMap;
+  internationalMarkupPercent?: number;
   children: React.ReactNode;
 }
 
@@ -41,10 +56,13 @@ export function CurrencyProvider({
   initialCurrency,
   detectedCurrency,
   initialRates,
+  internationalMarkupPercent = 0,
   children,
 }: CurrencyProviderProps) {
   const [currency, setCurrencyState] = useState<CurrencyCode>(initialCurrency);
   const rates = initialRates;
+  const safeMarkup = clampMarkupPercent(internationalMarkupPercent);
+  const isInternational = currency !== 'PKR';
 
   const setCurrency = useCallback((next: CurrencyCode) => {
     setCurrencyState(next);
@@ -56,14 +74,38 @@ export function CurrencyProvider({
     }
   }, []);
 
+  const getAdjustedUnitPrice = useCallback(
+    (basePkrPrice: number) => {
+      return applyZoneUnitPrice(
+        basePkrPrice,
+        isInternational ? 'INTERNATIONAL' : 'DOMESTIC',
+        safeMarkup
+      );
+    },
+    [isInternational, safeMarkup]
+  );
+
   const formatPrice = useCallback(
+    (basePkrPrice: number, overrideCurrency?: CurrencyCode) => {
+      const target = overrideCurrency || currency;
+      const adjusted = applyZoneUnitPrice(
+        basePkrPrice,
+        target !== 'PKR' ? 'INTERNATIONAL' : 'DOMESTIC',
+        safeMarkup
+      );
+      return formatMoney(adjusted, target, rates);
+    },
+    [currency, rates, safeMarkup]
+  );
+
+  const formatRawPrice = useCallback(
     (pkrAmount: number, overrideCurrency?: CurrencyCode) => {
       return formatMoney(pkrAmount, overrideCurrency || currency, rates);
     },
     [currency, rates]
   );
 
-  const convertAmount = useCallback(
+  const convertRawAmount = useCallback(
     (pkrAmount: number, overrideCurrency?: CurrencyCode) => {
       return convertFromPKR(pkrAmount, overrideCurrency || currency, rates);
     },
@@ -75,12 +117,27 @@ export function CurrencyProvider({
       currency,
       detectedCurrency,
       rates,
-      isInternational: currency !== 'PKR',
+      isInternational,
+      internationalMarkupPercent: safeMarkup,
       setCurrency,
+      getAdjustedUnitPrice,
       formatPrice,
-      convertAmount,
+      formatRawPrice,
+      convertRawAmount,
+      convertAmount: convertRawAmount,
     }),
-    [currency, detectedCurrency, rates, setCurrency, formatPrice, convertAmount]
+    [
+      currency,
+      detectedCurrency,
+      rates,
+      isInternational,
+      safeMarkup,
+      setCurrency,
+      getAdjustedUnitPrice,
+      formatPrice,
+      formatRawPrice,
+      convertRawAmount,
+    ]
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

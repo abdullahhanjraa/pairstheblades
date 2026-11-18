@@ -1,22 +1,41 @@
 import React from 'react';
+import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { CheckoutClient, type CheckoutStoreSettings } from './checkout-client';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CheckoutPage() {
-  let s: any = null;
-  try {
-    s = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
-  } catch (err) {
-    console.error('Error loading store settings in CheckoutPage:', err);
-  }
+  const [s, headerStore] = await Promise.all([
+    prisma.store
+      .findFirst({ orderBy: { createdAt: 'asc' } })
+      .catch((err) => {
+        console.error('Error loading store settings in CheckoutPage:', err);
+        return null;
+      }),
+    headers(),
+  ]);
+
+  const detectedCountry =
+    headerStore.get('x-vercel-ip-country') || headerStore.get('cf-ipcountry') || null;
 
   const initialStoreSettings: CheckoutStoreSettings = {
     storeName: s?.name || 'Pairs Blades',
     logoText: s?.logoText || 'PAIRS',
+    detectedCountry: detectedCountry ? detectedCountry.toUpperCase() : null,
     freeShippingThreshold: Number(s?.freeShippingThreshold) || 5000.0,
     shippingFee: Number(s?.shippingFee) || 250.0,
+    estimatedDeliveryDays: s?.estimatedDeliveryDays || '2-4 Business Days',
+    internationalShippingFee:
+      s?.internationalShippingFee !== undefined && s?.internationalShippingFee !== null
+        ? Number(s.internationalShippingFee)
+        : 7000.0,
+    internationalDeliveryDays:
+      s?.internationalDeliveryDays || '5-9 Business Days (DHL / FedEx)',
+    internationalMarkupPercent:
+      s?.internationalMarkupPercent !== undefined && s?.internationalMarkupPercent !== null
+        ? Number(s.internationalMarkupPercent)
+        : 25.0,
     enableCod: s?.enableCod !== undefined ? Boolean(s.enableCod) : true,
     enableCard: s?.enableCard !== undefined ? Boolean(s.enableCard) : true,
     codNotice:

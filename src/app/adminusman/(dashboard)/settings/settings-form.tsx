@@ -139,6 +139,10 @@ export function SettingsForm({
     shippingFee: initialStore?.shippingFee ?? 250,
     estimatedDeliveryDays:
       initialStore?.estimatedDeliveryDays ?? '2-4 Business Days',
+    internationalShippingFee: initialStore?.internationalShippingFee ?? 7000,
+    internationalDeliveryDays:
+      initialStore?.internationalDeliveryDays ?? '5-9 Business Days (DHL / FedEx)',
+    internationalMarkupPercent: initialStore?.internationalMarkupPercent ?? 25,
 
     // Payment Gateways
     enableCod: initialStore?.enableCod ?? true,
@@ -1139,77 +1143,250 @@ export function SettingsForm({
 
         {/* TAB 3: SHIPPING & LOGISTICS */}
         {activeTab === 'shipping' && (
-          <div className="space-y-6 max-w-2xl">
+          <div className="space-y-6 max-w-3xl">
             <div>
               <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                Shipping Rates & Logistics
+                Shipping Zones &amp; International Pricing
               </h2>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Configure nationwide courier charges, free delivery qualification cutoff, and delivery turnaround.
+                Automatic dual-zone rules: Pakistani shoppers see local courier rates, while international shoppers automatically see their currency and worldwide DHL / FedEx shipping.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
-                  Standard Courier Delivery Fee (PKR)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">
-                    Rs.
-                  </span>
-                  <input
-                    type="number"
-                    value={store.shippingFee}
-                    onChange={(e) =>
-                      setStore({ ...store, shippingFee: parseFloat(e.target.value) || 0 })
-                    }
-                    className="w-full p-2.5 pl-10 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold"
-                  />
+            {/* Zone 1: Domestic (Pakistan) */}
+            <div className="p-5 border border-neutral-200 bg-white space-y-4">
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                <div className="flex items-center space-x-2">
+                  <Truck className="w-4 h-4 text-black" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-black">
+                      1. Pakistan (Local Delivery)
+                    </h3>
+                    <p className="text-[11px] text-neutral-500">
+                      Applied automatically to all local Pakistani orders (COD &amp; Bank Transfer).
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  Applied automatically at checkout for orders under the threshold.
-                </p>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-100 text-neutral-700">
+                  PKR · Auto
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
-                  Free Shipping Threshold (PKR)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">
-                    Rs.
-                  </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    Local Courier Fee (PKR)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">
+                      Rs.
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={store.shippingFee}
+                      onChange={(e) =>
+                        setStore({ ...store, shippingFee: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full p-2.5 pl-10 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    Free Local Shipping Over (PKR)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">
+                      Rs.
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={store.freeShippingThreshold}
+                      onChange={(e) =>
+                        setStore({
+                          ...store,
+                          freeShippingThreshold: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full p-2.5 pl-10 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    Local Delivery Estimate
+                  </label>
                   <input
-                    type="number"
-                    value={store.freeShippingThreshold}
+                    type="text"
+                    value={store.estimatedDeliveryDays}
                     onChange={(e) =>
-                      setStore({
-                        ...store,
-                        freeShippingThreshold: parseFloat(e.target.value) || 0,
-                      })
+                      setStore({ ...store, estimatedDeliveryDays: e.target.value })
                     }
-                    className="w-full p-2.5 pl-10 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold"
+                    className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs"
                   />
                 </div>
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  Calculates live in the cart drawer progress bar and waives courier fee.
-                </p>
+              </div>
+            </div>
+
+            {/* Zone 2: International (Worldwide DHL / FedEx) */}
+            <div className="p-5 border border-neutral-200 bg-white space-y-4">
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                <div className="flex items-center space-x-2">
+                  <Globe className="w-4 h-4 text-black" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-black">
+                      2. Worldwide (International Orders — DHL / FedEx)
+                    </h3>
+                    <p className="text-[11px] text-neutral-500">
+                      International buyers always pay the shipping rate below (never free shipping) and prices auto-convert to USD / GBP / EUR / AED.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-900 text-white">
+                  Always Paid
+                </span>
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
-                  Estimated Delivery Turnaround
-                </label>
-                <input
-                  type="text"
-                  value={store.estimatedDeliveryDays}
-                  onChange={(e) =>
-                    setStore({ ...store, estimatedDeliveryDays: e.target.value })
-                  }
-                  className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    International Shipping Rate (PKR)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">
+                      Rs.
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={store.internationalShippingFee}
+                      onChange={(e) =>
+                        setStore({
+                          ...store,
+                          internationalShippingFee: Math.max(0, parseFloat(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full p-2.5 pl-10 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold font-mono"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-1 tabular-nums">
+                    Auto-converts to approx.{' '}
+                    <strong className="text-black">
+                      ${(Number(store.internationalShippingFee || 0) * 0.00361).toFixed(2)} USD
+                    </strong>{' '}
+                    on overseas checkout.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    International Price Adjustment (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      step={5}
+                      value={store.internationalMarkupPercent}
+                      onChange={(e) =>
+                        setStore({
+                          ...store,
+                          internationalMarkupPercent: Math.min(
+                            200,
+                            Math.max(0, parseFloat(e.target.value) || 0)
+                          ),
+                        })
+                      }
+                      className="w-full p-2.5 pr-9 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold font-mono"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs text-neutral-400 font-bold">
+                      %
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Optional extra margin for overseas buyers (set <strong>0</strong> for identical base prices).
+                  </p>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                    International Delivery Estimate
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="5-9 Business Days (DHL / FedEx)"
+                    value={store.internationalDeliveryDays}
+                    onChange={(e) =>
+                      setStore({ ...store, internationalDeliveryDays: e.target.value })
+                    }
+                    className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs"
+                  />
+                </div>
               </div>
+
+              {/* Clean Live Side-by-Side Buyer Preview */}
+              {(() => {
+                const sampleBase = 8499;
+                const domShip =
+                  sampleBase >= Number(store.freeShippingThreshold || 0)
+                    ? 0
+                    : Number(store.shippingFee || 0);
+                const intlMarkup = Math.min(
+                  200,
+                  Math.max(0, Number(store.internationalMarkupPercent || 0))
+                );
+                const intlPricePkr = Math.round(sampleBase * (1 + intlMarkup / 100));
+                const intlShipPkr = Math.max(0, Number(store.internationalShippingFee || 0));
+                const usdRate = 0.00361;
+                const intlItemUsd = (intlPricePkr * usdRate).toFixed(2);
+                const intlShipUsd = (intlShipPkr * usdRate).toFixed(2);
+                const intlTotalUsd = ((intlPricePkr + intlShipPkr) * usdRate).toFixed(2);
+
+                return (
+                  <div className="pt-3 border-t border-neutral-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                      Live Example Preview (Rs. 8,499 Blade):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs tabular-nums">
+                      <div className="bg-neutral-50 border border-neutral-200 p-3 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                          Pakistan Buyer Sees
+                        </span>
+                        <p className="font-bold text-black">
+                          Rs. {sampleBase.toLocaleString('en-PK')}{' '}
+                          <span className="font-normal text-neutral-500">
+                            + {domShip === 0 ? 'FREE shipping' : `Rs. ${domShip} shipping`}
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-neutral-500">
+                          Total: <strong className="text-black">Rs. {(sampleBase + domShip).toLocaleString('en-PK')}</strong>
+                        </p>
+                      </div>
+
+                      <div className="bg-neutral-50 border border-neutral-200 p-3 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                          International Buyer Sees (USD)
+                        </span>
+                        <p className="font-bold text-black">
+                          ${intlItemUsd}{' '}
+                          <span className="font-normal text-neutral-500">
+                            + ${intlShipUsd} DHL/FedEx
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-neutral-500">
+                          Total: <strong className="text-black">${intlTotalUsd} USD</strong>{' '}
+                          <span>(≈ Rs. {(intlPricePkr + intlShipPkr).toLocaleString('en-PK')})</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Save Shipping Settings Button */}

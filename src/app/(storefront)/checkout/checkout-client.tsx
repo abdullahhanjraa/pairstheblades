@@ -8,6 +8,11 @@ import { useCart } from '@/lib/cart-context';
 import { formatPKR } from '@/lib/formatters';
 import { useCurrency } from '@/lib/currency-context';
 import { normalizeCurrencyCode, type CurrencyCode } from '@/lib/currency';
+import {
+  applyZoneUnitPrice,
+  calculateZoneShipping,
+  resolveCheckoutPricingZone,
+} from '@/lib/pricing-zone';
 import { CurrencySwitcher } from '@/components/storefront/currency-switcher';
 import { trackStoreEvent, getOrCreateSessionId } from '@/lib/analytics';
 import {
@@ -29,8 +34,13 @@ import {
 export interface CheckoutStoreSettings {
   storeName: string;
   logoText: string;
+  detectedCountry: string | null;
   freeShippingThreshold: number;
   shippingFee: number;
+  estimatedDeliveryDays: string;
+  internationalShippingFee: number;
+  internationalDeliveryDays: string;
+  internationalMarkupPercent: number;
   enableCod: boolean;
   enableCard: boolean;
   codNotice: string;
@@ -105,9 +115,13 @@ export function CheckoutClient({
   const {
     currency,
     isInternational: isInternationalCurrency,
-    formatPrice,
-    convertAmount,
+    formatRawPrice,
+    convertRawAmount,
   } = useCurrency();
+
+  const initialIsOverseas =
+    isInternationalCurrency ||
+    Boolean(storeSettings.detectedCountry && storeSettings.detectedCountry !== 'PK');
 
   const [formData, setFormData] = useState({
     email: '',
@@ -115,12 +129,12 @@ export function CheckoutClient({
     firstName: '',
     lastName: '',
     address: '',
-    city: isInternationalCurrency ? '' : 'Lahore',
-    province: isInternationalCurrency ? '' : 'Punjab',
+    city: initialIsOverseas ? '' : 'Lahore',
+    province: initialIsOverseas ? '' : 'Punjab',
     postalCode: '',
     paymentMethod: getInitialPaymentMethod(
       storeSettings,
-      isInternationalCurrency
+      initialIsOverseas
     ) as PaymentMethodKey,
     directPaymentContact: '',
     notes: '',
@@ -135,9 +149,46 @@ export function CheckoutClient({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const checkoutTrackedRef = React.useRef(false);
 
+  const activeZone = useMemo(
+    () =>
+      resolveCheckoutPricingZone({
+        countryCode: storeSettings.detectedCountry,
+        currency,
+        province: formData.province,
+        paymentMethod: formData.paymentMethod,
+      }),
+    [storeSettings.detectedCountry, currency, formData.province, formData.paymentMethod]
+  );
+
+  const isInternationalZone = activeZone === 'INTERNATIONAL';
   const isInternationalMethod =
+    isInternationalZone ||
     formData.paymentMethod === 'PAYONEER' ||
     formData.paymentMethod === 'INTERNATIONAL_TRANSFER';
+
+  // Auto-switch off Pakistan-only COD if buyer switches currency to international or enters an overseas destination
+  React.useEffect(() => {
+    if (isInternationalZone && formData.paymentMethod === 'COD') {
+      const nextMethod: PaymentMethodKey = storeSettings.enablePayoneer
+        ? 'PAYONEER'
+        : storeSettings.enableInternationalTransfer
+          ? 'INTERNATIONAL_TRANSFER'
+          : storeSettings.enableCard
+            ? 'CARD'
+            : 'BANK_TRANSFER';
+      setFormData((prev) => ({
+        ...prev,
+        paymentMethod: nextMethod,
+        directPaymentContact: prev.directPaymentContact || prev.email || prev.phone,
+      }));
+    }
+  }, [
+    isInternationalZone,
+    formData.paymentMethod,
+    storeSettings.enablePayoneer,
+    storeSettings.enableInternationalTransfer,
+    storeSettings.enableCard,
+  ]);
 
   // Detect whether buyer entered an email or WhatsApp number in the direct contact field
   const directContactBadge = useMemo(() => {
@@ -188,18 +239,43 @@ export function CheckoutClient({
     });
   };
 
-  const shippingFee =
-    subtotal >= storeSettings.freeShippingThreshold || subtotal === 0
-      ? 0
-      : storeSettings.shippingFee;
-  const grandTotal = Math.max(0, subtotal - discountAmount + shippingFee);
+  const zoneSubtotal = useMemo(
+    () =>
+      items.reduce(
+        (sum, item) =>
+          sum +
+          applyZoneUnitPrice(
+            item.price,
+            activeZone,
+            storeSettings.internationalMarkupPercent
+          ) *
+            item.quantity,
+        0
+      ),
+    [items, activeZone, storeSettings.internationalMarkupPercent]
+  );
+
+  const shippingCalc = useMemo(
+    () =>
+      calculateZoneShipping(zoneSubtotal, activeZone, {
+        domesticFee: storeSettings.shippingFee,
+        domesticFreeThreshold: storeSettings.freeShippingThreshold,
+        domesticDeliveryDays: storeSettings.estimatedDeliveryDays,
+        internationalFee: storeSettings.internationalShippingFee,
+        internationalDeliveryDays: storeSettings.internationalDeliveryDays,
+      }),
+    [zoneSubtotal, activeZone, storeSettings]
+  );
+
+  const shippingFee = shippingCalc.shippingFee;
+  const grandTotal = Math.max(0, zoneSubtotal - discountAmount + shippingFee);
 
   // Payoneer target currency amount (defaults to store's configured Payoneer receiving currency e.g. USD)
   const payoneerTargetCurrency: CurrencyCode =
     normalizeCurrencyCode(storeSettings.payoneerCurrency) || 'USD';
-  const payoneerExactAmount = convertAmount(grandTotal, payoneerTargetCurrency);
-  const payoneerExactFormatted = `${formatPrice(grandTotal, payoneerTargetCurrency)} ${payoneerTargetCurrency}`;
-  const activeDisplayTotal = formatPrice(grandTotal);
+  const payoneerExactAmount = convertRawAmount(grandTotal, payoneerTargetCurrency);
+  const payoneerExactFormatted = `${formatRawPrice(grandTotal, payoneerTargetCurrency)} ${payoneerTargetCurrency}`;
+  const activeDisplayTotal = formatRawPrice(grandTotal);
 
   const storeWaDigits = toWaDigits(storeSettings.whatsappNumber || storeSettings.supportPhone);
   const storeWaUrl = storeWaDigits
@@ -334,7 +410,7 @@ export function CheckoutClient({
           city: formData.city.trim() || 'Lahore',
           province: formData.province.trim() || 'Punjab',
           postalCode: formData.postalCode,
-          subtotalPrice: subtotal,
+          subtotalPrice: zoneSubtotal,
           shippingPrice: shippingFee,
           totalPrice: grandTotal,
           paymentMethod: formData.paymentMethod,
@@ -735,8 +811,8 @@ export function CheckoutClient({
                 </h2>
 
                 <div className="space-y-2.5">
-                  {/* 1. Cash on Delivery */}
-                  {storeSettings.enableCod && (
+                  {/* 1. Cash on Delivery (Pakistan Domestic Only) */}
+                  {storeSettings.enableCod && !isInternationalZone && (
                     <label
                       className={`flex items-start p-4 border cursor-pointer transition-[border-color,background-color] duration-150 ${
                         formData.paymentMethod === 'COD'
@@ -1249,7 +1325,13 @@ export function CheckoutClient({
                     <p className="text-[11px] text-neutral-500">{item.variantTitle}</p>
                   </div>
                   <div className="text-xs font-bold text-black tabular-nums">
-                    {formatPrice(item.price * item.quantity)}
+                    {formatRawPrice(
+                      applyZoneUnitPrice(
+                        item.price,
+                        activeZone,
+                        storeSettings.internationalMarkupPercent
+                      ) * item.quantity
+                    )}
                   </div>
                 </div>
               ))}
@@ -1288,25 +1370,30 @@ export function CheckoutClient({
             <div className="space-y-2 pt-4 border-t border-neutral-200 text-xs tabular-nums">
               <div className="flex justify-between text-neutral-600">
                 <span>Subtotal</span>
-                <span className="font-semibold text-black">{formatPrice(subtotal)}</span>
+                <span className="font-semibold text-black">{formatRawPrice(zoneSubtotal)}</span>
               </div>
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-700 font-medium">
                   <span>Promotional Discount</span>
-                  <span>-{formatPrice(discountAmount)}</span>
+                  <span>-{formatRawPrice(discountAmount)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-neutral-600">
-                <span>{isInternationalMethod ? 'Shipping' : 'Nationwide Shipping'}</span>
-                <span className="font-semibold text-black">
+              <div className="flex justify-between items-start gap-2 text-neutral-600">
+                <div>
+                  <span className="block">{shippingCalc.carrierLabel}</span>
+                  <span className="block text-[10px] text-neutral-400">
+                    {shippingCalc.deliveryLabel}
+                  </span>
+                </div>
+                <span className="font-semibold text-black whitespace-nowrap">
                   {shippingFee === 0 ? (
                     <span className="text-emerald-700 font-bold uppercase text-[11px]">
                       FREE
                     </span>
                   ) : (
-                    formatPrice(shippingFee)
+                    formatRawPrice(shippingFee)
                   )}
                 </span>
               </div>

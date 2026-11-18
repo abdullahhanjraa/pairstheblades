@@ -3,24 +3,32 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, Plus, Minus, Trash2, ShoppingBag, Truck } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Truck, Globe } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useCurrency } from '@/lib/currency-context';
 
 interface CartDrawerProps {
   freeShippingThreshold?: number;
   shippingFee?: number;
+  internationalShippingFee?: number;
+  internationalDeliveryDays?: string;
 }
 
 export function CartDrawer({
   freeShippingThreshold = 5000.0,
   shippingFee = 250.0,
+  internationalShippingFee = 7000.0,
+  internationalDeliveryDays = '5-9 Business Days (DHL / FedEx)',
 }: CartDrawerProps = {}) {
   const { items, isOpen, closeCart, updateQuantity, removeItem, subtotal, itemCount } = useCart();
-  const { formatPrice, isInternational } = useCurrency();
+  const { formatPrice, formatRawPrice, getAdjustedUnitPrice, isInternational } = useCurrency();
 
   if (!isOpen) return null;
 
+  const adjustedSubtotal = items.reduce(
+    (sum, item) => sum + getAdjustedUnitPrice(item.price) * item.quantity,
+    0
+  );
   const progressPercent = Math.min(100, (subtotal / freeShippingThreshold) * 100);
   const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
 
@@ -51,26 +59,49 @@ export function CartDrawer({
             </button>
           </div>
 
-          {/* Free Shipping Progress Indicator */}
+          {/* Shipping Indicator — Local Free Shipping Progress vs Worldwide Express Flat Rate */}
           <div className="bg-neutral-50 px-6 py-3 border-b border-neutral-100">
-            <div className="flex items-center space-x-2 text-xs font-medium text-neutral-700">
-              <Truck className="w-4 h-4 text-black flex-shrink-0" />
-              {subtotal >= freeShippingThreshold ? (
-                <span className="text-emerald-700 font-semibold">
-                  You qualify for Free Nationwide Shipping!
+            {isInternational ? (
+              <div className="flex items-center justify-between gap-2 text-xs text-neutral-700">
+                <div className="flex items-center space-x-2">
+                  <Globe className="w-4 h-4 text-black flex-shrink-0" />
+                  <span className="font-medium text-neutral-800">
+                    Worldwide Express ·{' '}
+                    <strong className="text-black tabular-nums">
+                      {formatRawPrice(internationalShippingFee)}
+                    </strong>
+                  </span>
+                </div>
+                <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+                  {internationalDeliveryDays}
                 </span>
-              ) : (
-                <span>
-                  Add <strong className="text-black tabular-nums">{formatPrice(remainingForFreeShipping)}</strong> more to get Free Shipping
-                </span>
-              )}
-            </div>
-            <div className="w-full bg-neutral-200 h-1.5 mt-2 rounded-full overflow-hidden">
-              <div
-                className="bg-black h-full transition-all duration-500 ease-out"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center space-x-2 text-xs font-medium text-neutral-700">
+                  <Truck className="w-4 h-4 text-black flex-shrink-0" />
+                  {subtotal >= freeShippingThreshold ? (
+                    <span className="text-emerald-700 font-semibold">
+                      You qualify for Free Nationwide Shipping!
+                    </span>
+                  ) : (
+                    <span>
+                      Add{' '}
+                      <strong className="text-black tabular-nums">
+                        {formatRawPrice(remainingForFreeShipping)}
+                      </strong>{' '}
+                      more to get Free Shipping
+                    </span>
+                  )}
+                </div>
+                <div className="w-full bg-neutral-200 h-1.5 mt-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-black h-full transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Cart Items List */}
@@ -163,13 +194,13 @@ export function CartDrawer({
                   Subtotal
                 </span>
                 <span className="font-extrabold text-black text-base tabular-nums">
-                  {formatPrice(subtotal)}
+                  {formatRawPrice(adjustedSubtotal)}
                 </span>
               </div>
 
               <p className="text-[11px] text-neutral-500 text-left">
                 {isInternational
-                  ? 'Shipping calculated at checkout. Payoneer & International transfer accepted.'
+                  ? `Worldwide Express shipping (${formatRawPrice(internationalShippingFee)}) added at checkout. Payoneer accepted.`
                   : 'Shipping & taxes calculated at checkout. Cash on delivery available.'}
               </p>
 

@@ -2,6 +2,11 @@ import { NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { notifyOwnerOfNewOrder } from '@/lib/whatsapp-agent';
+import {
+  applyZoneUnitPrice,
+  calculateZoneShipping,
+  resolveCheckoutPricingZone,
+} from '@/lib/pricing-zone';
 
 class CheckoutValidationError extends Error {
   status: number;
@@ -171,6 +176,26 @@ export async function POST(req: Request) {
         });
       }
 
+      // 3.5 Resolve authoritative Domestic (Pakistan) vs International (Worldwide) pricing zone
+      const cleanPaymentMethod = (paymentMethod || 'COD').toUpperCase();
+      const edgeCountry =
+        req.headers.get('x-vercel-ip-country') || req.headers.get('cf-ipcountry') || null;
+      const activeZone = resolveCheckoutPricingZone({
+        countryCode: edgeCountry,
+        currency: cleanBuyerCurrency || 'PKR',
+        province: cleanProvince,
+        paymentMethod: cleanPaymentMethod,
+      });
+
+      if (activeZone === 'INTERNATIONAL' && cleanPaymentMethod === 'COD') {
+        throw new CheckoutValidationError(
+          'Cash on Delivery is available within Pakistan only. Please choose Payoneer or International Transfer for worldwide shipping.',
+          400
+        );
+      }
+
+      const internationalMarkupPercent = store.internationalMarkupPercent ?? 25.0;
+
       // 4. Server-Side Price & Inventory Authority
       // NEVER trust client-sent prices; verify each item in database
       const validatedItems: Array<{
@@ -244,7 +269,11 @@ export async function POST(req: Request) {
             );
           }
 
-          const authoritativePrice = variant.price;
+          const authoritativePrice = applyZoneUnitPrice(
+            variant.price,
+            activeZone,
+            internationalMarkupPercent
+          );
           verifiedSubtotal += authoritativePrice * qty;
 
           const cleanVariantTitle =
@@ -264,7 +293,11 @@ export async function POST(req: Request) {
             image: item.image || variant.product?.featuredImage,
           });
         } else if (product) {
-          const authoritativePrice = product.price;
+          const authoritativePrice = applyZoneUnitPrice(
+            product.price,
+            activeZone,
+            internationalMarkupPercent
+          );
           verifiedSubtotal += authoritativePrice * qty;
 
           validatedItems.push({
@@ -309,20 +342,32 @@ export async function POST(req: Request) {
         }
       }
 
-      // 6. Server-Side Shipping Calculation
-      const freeThreshold = store.freeShippingThreshold ?? 5000.0;
-      const baseShippingFee = store.shippingFee ?? 250.0;
-      const verifiedShipping = verifiedSubtotal >= freeThreshold ? 0 : baseShippingFee;
+      // 6. Server-Side Dual-Zone Shipping Calculation (International NEVER gets free shipping)
+      const zoneShipping = calculateZoneShipping(verifiedSubtotal, activeZone, {
+        domesticFee: store.shippingFee ?? 250.0,
+        domesticFreeThreshold: store.freeShippingThreshold ?? 5000.0,
+        domesticDeliveryDays: store.estimatedDeliveryDays || '2-4 Business Days',
+        internationalFee: store.internationalShippingFee ?? 7000.0,
+        internationalDeliveryDays:
+          store.internationalDeliveryDays || '5-9 Business Days (DHL / FedEx)',
+      });
+      const verifiedShipping = zoneShipping.shippingFee;
 
       // 7. Authoritative Total Price
       const verifiedGrandTotal = Math.max(0, verifiedSubtotal - verifiedDiscount + verifiedShipping);
 
       // 8. Payment Gateway Validation
-      const cleanPaymentMethod = (paymentMethod || 'COD').toUpperCase();
       let financialStatus = 'PENDING';
       if (cleanPaymentMethod === 'CARD') {
         financialStatus = 'PAID';
       }
+
+      const finalOrderNotes = [
+        activeZone === 'INTERNATIONAL' ? 'Shipping Zone: Worldwide Express (DHL/FedEx)' : '',
+        cleanNotes,
+      ]
+        .filter(Boolean)
+        .join(' | ');
 
       // 9. Atomic Transaction: Create Order & Decrement Stock
       const order = await prisma.$transaction(async (tx) => {
@@ -371,7 +416,7 @@ export async function POST(req: Request) {
             paymentMethod: cleanPaymentMethod,
             financialStatus,
             fulfillmentStatus: 'UNFULFILLED',
-            notes: cleanNotes || null,
+            notes: finalOrderNotes || null,
             items: {
               create: validatedItems.map((item) => ({
                 productId: item.productId,
