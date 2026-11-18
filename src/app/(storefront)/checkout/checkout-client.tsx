@@ -6,6 +6,9 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
 import { formatPKR } from '@/lib/formatters';
+import { useCurrency } from '@/lib/currency-context';
+import { normalizeCurrencyCode, type CurrencyCode } from '@/lib/currency';
+import { CurrencySwitcher } from '@/components/storefront/currency-switcher';
 import { trackStoreEvent, getOrCreateSessionId } from '@/lib/analytics';
 import {
   ShieldCheck,
@@ -69,7 +72,15 @@ type PaymentMethodKey =
   | 'INTERNATIONAL_TRANSFER'
   | 'CARD';
 
-function getInitialPaymentMethod(s: CheckoutStoreSettings): PaymentMethodKey {
+function getInitialPaymentMethod(
+  s: CheckoutStoreSettings,
+  preferInternational: boolean
+): PaymentMethodKey {
+  if (preferInternational) {
+    if (s.enablePayoneer) return 'PAYONEER';
+    if (s.enableInternationalTransfer) return 'INTERNATIONAL_TRANSFER';
+    if (s.enableCard) return 'CARD';
+  }
   if (s.enableCod) return 'COD';
   if (s.enableBankTransfer) return 'BANK_TRANSFER';
   if (s.enablePayoneer) return 'PAYONEER';
@@ -91,6 +102,12 @@ export function CheckoutClient({
 }) {
   const router = useRouter();
   const { items, subtotal, clearCart } = useCart();
+  const {
+    currency,
+    isInternational: isInternationalCurrency,
+    formatPrice,
+    convertAmount,
+  } = useCurrency();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -98,10 +115,13 @@ export function CheckoutClient({
     firstName: '',
     lastName: '',
     address: '',
-    city: 'Lahore',
-    province: 'Punjab',
+    city: isInternationalCurrency ? '' : 'Lahore',
+    province: isInternationalCurrency ? '' : 'Punjab',
     postalCode: '',
-    paymentMethod: getInitialPaymentMethod(storeSettings) as PaymentMethodKey,
+    paymentMethod: getInitialPaymentMethod(
+      storeSettings,
+      isInternationalCurrency
+    ) as PaymentMethodKey,
     directPaymentContact: '',
     notes: '',
   });
@@ -173,6 +193,13 @@ export function CheckoutClient({
       ? 0
       : storeSettings.shippingFee;
   const grandTotal = Math.max(0, subtotal - discountAmount + shippingFee);
+
+  // Payoneer target currency amount (defaults to store's configured Payoneer receiving currency e.g. USD)
+  const payoneerTargetCurrency: CurrencyCode =
+    normalizeCurrencyCode(storeSettings.payoneerCurrency) || 'USD';
+  const payoneerExactAmount = convertAmount(grandTotal, payoneerTargetCurrency);
+  const payoneerExactFormatted = `${formatPrice(grandTotal, payoneerTargetCurrency)} ${payoneerTargetCurrency}`;
+  const activeDisplayTotal = formatPrice(grandTotal);
 
   const storeWaDigits = toWaDigits(storeSettings.whatsappNumber || storeSettings.supportPhone);
   const storeWaUrl = storeWaDigits
@@ -314,6 +341,14 @@ export function CheckoutClient({
           directPaymentContact: isInternationalMethod
             ? formData.directPaymentContact.trim()
             : undefined,
+          buyerCurrency:
+            formData.paymentMethod === 'PAYONEER' ? payoneerTargetCurrency : currency,
+          buyerTotalFormatted:
+            formData.paymentMethod === 'PAYONEER'
+              ? payoneerExactFormatted
+              : isInternationalCurrency
+                ? `${activeDisplayTotal} ${currency}`
+                : undefined,
           discountCode: discountAmount > 0 ? discountCode : undefined,
           idempotencyKey: `${formData.phone.replace(/\D/g, '')}_${items
             .map((i) => `${i.variantId || i.productId}:${i.quantity}`)
@@ -482,11 +517,14 @@ export function CheckoutClient({
               {storeSettings.logoText}
             </span>
           </Link>
-          <div className="flex items-center space-x-2 text-xs text-neutral-500">
-            <ShieldCheck className="w-4 h-4 text-black" />
-            <span className="hidden sm:inline uppercase tracking-widest font-semibold">
-              Secure Checkout
-            </span>
+          <div className="flex items-center space-x-3 sm:space-x-5">
+            <CurrencySwitcher variant="header" />
+            <div className="flex items-center space-x-2 text-xs text-neutral-500">
+              <ShieldCheck className="w-4 h-4 text-black" />
+              <span className="hidden sm:inline uppercase tracking-widest font-semibold">
+                Secure Checkout
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -868,6 +906,42 @@ export function CheckoutClient({
                       {formData.paymentMethod === 'PAYONEER' && (
                         <div className="px-4 pb-4 pt-1">
                           <div className="bg-white border border-neutral-200 px-4 py-3.5 space-y-3">
+                            {/* Exact Converted Payoneer Amount Banner */}
+                            <div className="flex items-center justify-between gap-3 bg-neutral-50 border border-neutral-200 px-3.5 py-2.5">
+                              <div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                                  Exact Amount to Transfer ({payoneerTargetCurrency})
+                                </span>
+                                <div className="flex items-baseline gap-2 mt-0.5 tabular-nums">
+                                  <span className="text-sm font-extrabold text-black font-mono">
+                                    {payoneerExactFormatted}
+                                  </span>
+                                  <span className="text-[11px] text-neutral-400">
+                                    ≈ {formatPKR(grandTotal)}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopy(String(payoneerExactAmount), 'payoneerAmount')
+                                }
+                                className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border border-neutral-300 hover:border-black text-neutral-700 hover:text-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0 bg-white"
+                              >
+                                {copiedField === 'payoneerAmount' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-400" />
+                                    <span>Copy Amount</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
                             {hasPayoneerDetails ? (
                               <>
                                 <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
@@ -1140,7 +1214,7 @@ export function CheckoutClient({
                       <span>Placing Order...</span>
                     </>
                   ) : (
-                    <span>Complete Order — {formatPKR(grandTotal)}</span>
+                    <span>Complete Order — {activeDisplayTotal}</span>
                   )}
                 </button>
               </div>
@@ -1175,7 +1249,7 @@ export function CheckoutClient({
                     <p className="text-[11px] text-neutral-500">{item.variantTitle}</p>
                   </div>
                   <div className="text-xs font-bold text-black tabular-nums">
-                    {formatPKR(item.price * item.quantity)}
+                    {formatPrice(item.price * item.quantity)}
                   </div>
                 </div>
               ))}
@@ -1214,13 +1288,13 @@ export function CheckoutClient({
             <div className="space-y-2 pt-4 border-t border-neutral-200 text-xs tabular-nums">
               <div className="flex justify-between text-neutral-600">
                 <span>Subtotal</span>
-                <span className="font-semibold text-black">{formatPKR(subtotal)}</span>
+                <span className="font-semibold text-black">{formatPrice(subtotal)}</span>
               </div>
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-700 font-medium">
                   <span>Promotional Discount</span>
-                  <span>-{formatPKR(discountAmount)}</span>
+                  <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}
 
@@ -1232,16 +1306,25 @@ export function CheckoutClient({
                       FREE
                     </span>
                   ) : (
-                    formatPKR(shippingFee)
+                    formatPrice(shippingFee)
                   )}
                 </span>
               </div>
 
-              <div className="flex justify-between text-base font-extrabold text-black pt-3 border-t border-neutral-200">
+              <div className="flex justify-between items-baseline text-base font-extrabold text-black pt-3 border-t border-neutral-200">
                 <span>Total</span>
                 <div className="text-right">
-                  <span className="text-[10px] text-neutral-400 font-normal mr-1">PKR</span>
-                  <span>{formatPKR(grandTotal)}</span>
+                  <div>
+                    <span className="text-[10px] text-neutral-400 font-normal mr-1">
+                      {currency}
+                    </span>
+                    <span>{activeDisplayTotal}</span>
+                  </div>
+                  {isInternationalCurrency && (
+                    <span className="block text-[10px] font-normal text-neutral-400 mt-0.5">
+                      ≈ {formatPKR(grandTotal)} PKR
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

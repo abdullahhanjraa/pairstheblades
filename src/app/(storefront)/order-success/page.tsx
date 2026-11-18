@@ -44,6 +44,8 @@ export default async function OrderSuccessPage({
     ? `92${supportPhoneDigits.slice(1)}`
     : supportPhoneDigits;
   const supportEmail = store?.supportEmail || 'support@pairstheblades.com';
+  const buyerCurrencyMatch = order?.notes?.match(/Buyer Currency:\s*([^|]+)/i);
+  const buyerCurrencyTotal = buyerCurrencyMatch ? buyerCurrencyMatch[1].trim() : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-left">
@@ -191,8 +193,12 @@ export default async function OrderSuccessPage({
             <p className="text-neutral-700 leading-relaxed font-light">
               Please complete payment for Order{' '}
               <strong className="text-black font-extrabold">#{order.orderNumber}</strong> (
-              <strong className="text-black font-extrabold">{formatPKR(order.totalPrice)}</strong>)
-              using our official Payoneer details below:
+              <strong className="text-black font-extrabold">
+                {buyerCurrencyTotal
+                  ? `${buyerCurrencyTotal} / ${formatPKR(order.totalPrice)}`
+                  : formatPKR(order.totalPrice)}
+              </strong>
+              ) using our official Payoneer details below:
             </p>
 
             {store?.payoneerEmail?.trim() ||

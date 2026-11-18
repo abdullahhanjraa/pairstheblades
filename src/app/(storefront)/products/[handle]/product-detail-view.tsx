@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp, Truck, ShieldCheck, Plus, Minus, ArrowLeft, Maximize2, X } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { formatPKR } from '@/lib/formatters';
+import { useCurrency } from '@/lib/currency-context';
 import { trackStoreEvent } from '@/lib/analytics';
 
 export interface ProductDetailViewProps {
@@ -32,6 +32,7 @@ export interface ProductDetailViewProps {
 export function ProductDetailView({ product }: ProductDetailViewProps) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { formatPrice, isInternational } = useCurrency();
   const [selectedImage, setSelectedImage] = useState(product.featuredImage);
   const [selectedVariant, setSelectedVariant] = useState(
     product.variants[0] || {
@@ -191,23 +192,25 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
             </h1>
 
             {/* Pricing */}
-            <div className="mt-3 flex items-baseline space-x-3">
+            <div className="mt-3 flex items-baseline space-x-3 tabular-nums">
               <span className="text-xl sm:text-2xl font-black text-black">
-                {formatPKR(product.price)}
+                {formatPrice(product.price)}
               </span>
               {isOnSale && (
                 <>
                   <span className="text-sm text-neutral-400 line-through">
-                    {formatPKR(product.compareAtPrice!)}
+                    {formatPrice(product.compareAtPrice!)}
                   </span>
                   <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Save {formatPKR(savings)}
+                    Save {formatPrice(savings)}
                   </span>
                 </>
               )}
             </div>
             <p className="text-[11px] text-neutral-500 mt-1">
-              Taxes included. Cash on delivery nationwide.
+              {isInternational
+                ? 'Worldwide shipping available. Payoneer & international transfers accepted.'
+                : 'Taxes included. Cash on delivery nationwide.'}
             </p>
           </div>
 

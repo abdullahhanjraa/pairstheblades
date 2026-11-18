@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { formatPKR } from '@/lib/formatters';
+import { useCurrency } from '@/lib/currency-context';
 import { useCart } from '@/lib/cart-context';
 
 export interface ProductCardProps {
@@ -35,6 +35,7 @@ export function ProductCard({
   const [isHovered, setIsHovered] = useState(false);
   const [quickSelectOpen, setQuickSelectOpen] = useState(false);
   const { addItem } = useCart();
+  const { formatPrice } = useCurrency();
 
   // Secondary image for hover swap if available
   const secondaryImage = images.length > 1 ? images[1] : featuredImage;
@@ -173,11 +174,11 @@ export function ProductCard({
 
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-xs sm:text-[13px] font-medium text-black tracking-tight tabular-nums">
-            {formatPKR(price)}
+            {formatPrice(price)}
           </span>
           {isOnSale && (
             <span className="text-[11px] sm:text-xs text-red-500/80 line-through tabular-nums">
-              {formatPKR(compareAtPrice!)}
+              {formatPrice(compareAtPrice!)}
             </span>
           )}
         </div>

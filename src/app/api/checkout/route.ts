@@ -66,6 +66,8 @@ export async function POST(req: Request) {
       discountCode,
       notes,
       directPaymentContact,
+      buyerCurrency,
+      buyerTotalFormatted,
       items,
       idempotencyKey,
     } = body;
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
       rawEmail ||
       (directContactIsEmail ? cleanDirectContact : `${cleanPhone.replace(/\D/g, '')}@pairs.pk`);
 
-    // Combine optional buyer notes with direct international contact (WhatsApp or Email) so it appears everywhere
+    // Combine optional buyer notes with direct international contact & converted currency total
     const noteParts: string[] = [];
     if (cleanDirectContact) {
       noteParts.push(
@@ -101,6 +103,11 @@ export async function POST(req: Request) {
           ? `Direct Email: ${cleanDirectContact}`
           : `Direct WhatsApp: ${normalizePhone(cleanDirectContact)}`
       );
+    }
+    const cleanBuyerCurrency = sanitize(buyerCurrency).toUpperCase();
+    const cleanBuyerTotal = sanitize(buyerTotalFormatted);
+    if (cleanBuyerCurrency && cleanBuyerCurrency !== 'PKR' && cleanBuyerTotal) {
+      noteParts.push(`Buyer Currency: ${cleanBuyerTotal}`);
     }
     const baseNote = sanitize(notes);
     if (baseNote) noteParts.push(baseNote);

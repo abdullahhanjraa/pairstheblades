@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Search, Menu, X, ArrowRight } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { formatPKR } from '@/lib/formatters';
+import { useCurrency } from '@/lib/currency-context';
+import { CurrencySwitcher } from '@/components/storefront/currency-switcher';
 import { smartSearchProducts, type SearchableProduct } from '@/lib/smart-search';
 
 interface NavbarProps {
@@ -16,6 +17,7 @@ interface NavbarProps {
 export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
   const router = useRouter();
   const { openCart, itemCount } = useCart();
+  const { formatPrice } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,8 +150,10 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
               </Link>
             </div>
 
-            {/* Right: Search & Cart */}
-            <div className="flex items-center space-x-4 sm:space-x-6">
+            {/* Right: Currency Switcher, Search & Cart */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <CurrencySwitcher variant="header" />
+
               <button
                 type="button"
                 onMouseEnter={prefetchCatalog}
@@ -271,13 +275,13 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
                               <p className="text-xs sm:text-sm font-medium text-neutral-900 truncate group-hover:text-black">
                                 {item.title}
                               </p>
-                              <div className="flex items-baseline space-x-2 mt-0.5">
+                              <div className="flex items-baseline space-x-2 mt-0.5 tabular-nums">
                                 <span className="text-xs font-semibold text-black">
-                                  {formatPKR(item.price)}
+                                  {formatPrice(item.price)}
                                 </span>
                                 {onSale && (
                                   <span className="text-[11px] text-red-500/80 line-through">
-                                    {formatPKR(item.compareAtPrice!)}
+                                    {formatPrice(item.compareAtPrice!)}
                                   </span>
                                 )}
                               </div>
@@ -344,9 +348,15 @@ export function Navbar({ logoText = 'PAIRS' }: NavbarProps) {
               </nav>
             </div>
 
-            <div className="pt-6 border-t border-neutral-100 text-xs text-neutral-500 space-y-2">
-              <p>Shipping all over Pakistan</p>
-              <p>Cash on Delivery Available</p>
+            <div className="pt-6 border-t border-neutral-100 space-y-5">
+              <CurrencySwitcher
+                variant="mobile"
+                onSelect={() => setMobileMenuOpen(false)}
+              />
+              <div className="text-xs text-neutral-500 space-y-1">
+                <p>Nationwide Pakistan &amp; Worldwide Shipping</p>
+                <p>COD, Bank Transfer &amp; Payoneer Accepted</p>
+              </div>
             </div>
           </div>
         </div>

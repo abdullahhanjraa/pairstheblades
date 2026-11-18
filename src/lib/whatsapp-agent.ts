@@ -131,7 +131,9 @@ export function formatOrderAlertMessage(
   if (discountAmount > 0) {
     lines.push(`*Discount:* -${formatPKRPlain(discountAmount)}`);
   }
-  lines.push(`*Total:* *${formatPKRPlain(order.totalPrice)}*`);
+  const buyerCurrencyMatch = order.notes?.match(/Buyer Currency:\s*([^|]+)/i);
+  const buyerCurrencyHint = buyerCurrencyMatch ? ` (~${buyerCurrencyMatch[1].trim()})` : '';
+  lines.push(`*Total:* *${formatPKRPlain(order.totalPrice)}*${buyerCurrencyHint}`);
 
   if (order.notes && order.notes.trim()) {
     lines.push('');

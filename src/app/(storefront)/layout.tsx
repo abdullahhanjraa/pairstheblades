@@ -1,5 +1,7 @@
 import React from 'react';
 import { prisma } from '@/lib/db';
+import { resolveRequestCurrency } from '@/lib/currency-server';
+import { CurrencyProvider } from '@/lib/currency-context';
 import { AnnouncementBar } from '@/components/storefront/announcement-bar';
 import { Navbar } from '@/components/storefront/navbar';
 import { CartDrawer } from '@/components/storefront/cart-drawer';
@@ -16,11 +18,16 @@ export default async function StorefrontLayout({
 }) {
   let store: any = null;
 
-  try {
-    store = await prisma.store.findFirst({ orderBy: { createdAt: 'asc' } });
-  } catch (e) {
-    console.error('Error loading store in StorefrontLayout:', e);
-  }
+  const [storeResult, currencyState] = await Promise.all([
+    prisma.store
+      .findFirst({ orderBy: { createdAt: 'asc' } })
+      .catch((e) => {
+        console.error('Error loading store in StorefrontLayout:', e);
+        return null;
+      }),
+    resolveRequestCurrency(),
+  ]);
+  store = storeResult;
 
   const enableAnnouncement = store?.enableAnnouncement ?? true;
   const announcement =
@@ -48,41 +55,47 @@ export default async function StorefrontLayout({
   const legalName = store?.name || 'Pairs Knife & Sword Co.';
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <AnnouncementBar text={announcement} enabled={enableAnnouncement} />
-      <Navbar logoText={logoText} />
-      <CartDrawer
-        freeShippingThreshold={freeShippingThreshold}
-        shippingFee={shippingFee}
-      />
-      <main className="flex-1">{children}</main>
-      <Footer
-        logoText={logoText}
-        enableSocialLinks={enableSocialLinks}
-        enableInstagram={enableInstagram}
-        enableTiktok={enableTiktok}
-        enableYoutube={enableYoutube}
-        enableWhatsApp={enableWhatsApp}
-        whatsappNumber={whatsappNumber}
-        instagramUrl={instagramUrl}
-        tiktokUrl={tiktokUrl}
-        youtubeUrl={youtubeUrl}
-        legalName={legalName}
-      />
+    <CurrencyProvider
+      initialCurrency={currencyState.currency}
+      detectedCurrency={currencyState.detectedCurrency}
+      initialRates={currencyState.rates}
+    >
+      <div className="flex flex-col min-h-screen">
+        <AnnouncementBar text={announcement} enabled={enableAnnouncement} />
+        <Navbar logoText={logoText} />
+        <CartDrawer
+          freeShippingThreshold={freeShippingThreshold}
+          shippingFee={shippingFee}
+        />
+        <main className="flex-1">{children}</main>
+        <Footer
+          logoText={logoText}
+          enableSocialLinks={enableSocialLinks}
+          enableInstagram={enableInstagram}
+          enableTiktok={enableTiktok}
+          enableYoutube={enableYoutube}
+          enableWhatsApp={enableWhatsApp}
+          whatsappNumber={whatsappNumber}
+          instagramUrl={instagramUrl}
+          tiktokUrl={tiktokUrl}
+          youtubeUrl={youtubeUrl}
+          legalName={legalName}
+        />
 
-      {/* Floating Customer Support WhatsApp Widget */}
-      <FloatingWhatsApp
-        phone={whatsappNumber}
-        defaultMessage={whatsappDefaultMsg}
-        enabled={enableFloatingWhatsApp && enableSocialLinks}
-      />
+        {/* Floating Customer Support WhatsApp Widget */}
+        <FloatingWhatsApp
+          phone={whatsappNumber}
+          defaultMessage={whatsappDefaultMsg}
+          enabled={enableFloatingWhatsApp && enableSocialLinks}
+        />
 
-      {/* Marketing Pixels (Meta, TikTok, GA4) & Conversion Funnel Beacon */}
-      <TrackingPixels
-        metaPixelId={store?.metaPixelId}
-        tiktokPixelId={store?.tiktokPixelId}
-        ga4MeasurementId={store?.ga4MeasurementId}
-      />
-    </div>
+        {/* Marketing Pixels (Meta, TikTok, GA4) & Conversion Funnel Beacon */}
+        <TrackingPixels
+          metaPixelId={store?.metaPixelId}
+          tiktokPixelId={store?.tiktokPixelId}
+          ga4MeasurementId={store?.ga4MeasurementId}
+        />
+      </div>
+    </CurrencyProvider>
   );
 }

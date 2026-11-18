@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { X, Plus, Minus, Trash2, ShoppingBag, Truck } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { formatPKR } from '@/lib/formatters';
+import { useCurrency } from '@/lib/currency-context';
 
 interface CartDrawerProps {
   freeShippingThreshold?: number;
@@ -17,6 +17,7 @@ export function CartDrawer({
   shippingFee = 250.0,
 }: CartDrawerProps = {}) {
   const { items, isOpen, closeCart, updateQuantity, removeItem, subtotal, itemCount } = useCart();
+  const { formatPrice, isInternational } = useCurrency();
 
   if (!isOpen) return null;
 
@@ -60,7 +61,7 @@ export function CartDrawer({
                 </span>
               ) : (
                 <span>
-                  Add <strong className="text-black">{formatPKR(remainingForFreeShipping)}</strong> more to get Free Shipping
+                  Add <strong className="text-black tabular-nums">{formatPrice(remainingForFreeShipping)}</strong> more to get Free Shipping
                 </span>
               )}
             </div>
@@ -123,8 +124,8 @@ export function CartDrawer({
                         {item.variantTitle}
                       </p>
 
-                      <div className="text-xs font-bold text-black mt-1">
-                        {formatPKR(item.price)}
+                      <div className="text-xs font-bold text-black mt-1 tabular-nums">
+                        {formatPrice(item.price)}
                       </div>
                     </div>
 
@@ -161,13 +162,15 @@ export function CartDrawer({
                 <span className="font-medium text-neutral-600 uppercase tracking-wider text-xs">
                   Subtotal
                 </span>
-                <span className="font-extrabold text-black text-base">
-                  {formatPKR(subtotal)}
+                <span className="font-extrabold text-black text-base tabular-nums">
+                  {formatPrice(subtotal)}
                 </span>
               </div>
 
               <p className="text-[11px] text-neutral-500 text-left">
-                Shipping & taxes calculated at checkout. Cash on delivery available.
+                {isInternational
+                  ? 'Shipping calculated at checkout. Payoneer & International transfer accepted.'
+                  : 'Shipping & taxes calculated at checkout. Cash on delivery available.'}
               </p>
 
               <Link
