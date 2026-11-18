@@ -42,7 +42,7 @@ export default async function AdminDashboardPage() {
     console.error('Admin query error', err);
   }
 
-  const analyticsSnapshot = await getAdminAnalyticsSnapshot(orders);
+  const analyticsSnapshot = await getAdminAnalyticsSnapshot(orders, products);
   const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const recentOrders = orders.slice(0, 6);
 
