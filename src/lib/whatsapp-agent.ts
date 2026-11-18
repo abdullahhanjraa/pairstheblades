@@ -23,6 +23,7 @@ export interface WhatsAppSendResult {
 export interface OrderAlertPayload {
   orderNumber: string | number;
   customerName: string;
+  customerEmail?: string | null;
   customerPhone: string;
   shippingAddress: string;
   city: string;
@@ -57,11 +58,19 @@ function humanizePaymentMethod(method: string, financialStatus?: string | null):
   const upper = (method || '').toUpperCase();
   if (upper === 'COD') return 'Cash on Delivery (COD)';
   if (upper === 'BANK_TRANSFER') return 'Bank Transfer / Raast';
-  if (upper === 'INTERNATIONAL_TRANSFER') return 'International Transfer (Payoneer / PayPal / Wise)';
+  if (upper === 'PAYONEER') return 'Payoneer (International Payment)';
+  if (upper === 'INTERNATIONAL_TRANSFER') return 'International Transfer (PayPal / Wise)';
   if (upper === 'CARD') {
     return financialStatus === 'PAID' ? 'Card Payment (Paid)' : 'Card Payment';
   }
   return method || 'COD';
+}
+
+function toWhatsAppLink(rawPhone: string): string | null {
+  const digits = (rawPhone || '').replace(/\D/g, '');
+  if (digits.length < 7) return null;
+  const intl = digits.startsWith('03') && digits.length === 11 ? `92${digits.slice(1)}` : digits;
+  return `https://wa.me/${intl}`;
 }
 
 /**
@@ -75,12 +84,24 @@ export function formatOrderAlertMessage(
   isTest = false
 ): string {
   const headerTag = isTest ? '*TEST ORDER ALERT*' : '*NEW ORDER RECEIVED*';
+  const realEmail =
+    order.customerEmail && !order.customerEmail.toLowerCase().endsWith('@pairs.pk')
+      ? order.customerEmail.trim()
+      : null;
+
+  // Prefer explicit Direct WhatsApp from notes if customer entered a separate WhatsApp number
+  const directWaMatch = order.notes?.match(/Direct WhatsApp:\s*([^|]+)/i);
+  const preferredWaPhone = directWaMatch ? directWaMatch[1].trim() : order.customerPhone;
+  const waLink = toWhatsAppLink(preferredWaPhone);
+
   const lines: string[] = [
     `${headerTag} — *#${order.orderNumber}*`,
     `_${storeName}_`,
     '',
     `*Customer:* ${order.customerName}`,
     `*Phone:* ${order.customerPhone}`,
+    ...(realEmail ? [`*Email:* ${realEmail}`] : []),
+    ...(waLink ? [`*WhatsApp Buyer:* ${waLink}`] : []),
     `*City:* ${order.city}${order.province ? ` (${order.province})` : ''}`,
     `*Address:* ${order.shippingAddress}${order.postalCode ? `, ${order.postalCode}` : ''}`,
     '',

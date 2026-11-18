@@ -155,6 +155,18 @@ export function SettingsForm({
     bankInstructions:
       initialStore?.bankInstructions ??
       'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to +92 300 1234567',
+    enablePayoneer: initialStore?.enablePayoneer ?? true,
+    payoneerTitle: initialStore?.payoneerTitle ?? 'Payoneer (International Payment)',
+    payoneerEmail: initialStore?.payoneerEmail ?? '',
+    payoneerAccountHolder: initialStore?.payoneerAccountHolder ?? '',
+    payoneerBankName: initialStore?.payoneerBankName ?? '',
+    payoneerAccountNumber: initialStore?.payoneerAccountNumber ?? '',
+    payoneerRoutingNumber: initialStore?.payoneerRoutingNumber ?? '',
+    payoneerCurrency: initialStore?.payoneerCurrency ?? 'USD',
+    payoneerPayLink: initialStore?.payoneerPayLink ?? '',
+    payoneerInstructions:
+      initialStore?.payoneerInstructions ??
+      'Send payment to our Payoneer account above and share your receipt with your Order # via WhatsApp or Email.',
     enableInternationalTransfer: initialStore?.enableInternationalTransfer ?? true,
     internationalTitle:
       initialStore?.internationalTitle ?? 'International Transfer (Payoneer / PayPal / Wise)',
@@ -1434,18 +1446,244 @@ export function SettingsForm({
                 </div>
               </div>
 
-              {/* 3. International Transfer (Payoneer / PayPal / Wise) */}
+              {/* 3. Payoneer (International Payment) */}
               <div className="p-5 border border-neutral-200 bg-white space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
                       <Globe className="w-4 h-4 text-black" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-black">
-                        3. International Transfer (Payoneer / PayPal / Wise)
+                        3. Payoneer (International Payment)
                       </h3>
                     </div>
                     <p className="text-[11px] text-neutral-500">
-                      Accept overseas payments via Payoneer, PayPal, Wise, or SWIFT directly on checkout with one-click copy buttons.
+                      Add your official Payoneer email &amp; receiving bank details so international customers can pay you directly and easily.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={store.enablePayoneer}
+                      onChange={(e) =>
+                        setStore({ ...store, enablePayoneer: e.target.checked })
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <span className="ml-2 text-[11px] font-bold uppercase text-black">
+                      {store.enablePayoneer ? 'Active' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Checkout Option Display Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Payoneer (International Payment)"
+                      value={store.payoneerTitle}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerTitle: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Receiving Currency
+                    </label>
+                    <select
+                      value={store.payoneerCurrency}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerCurrency: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-bold uppercase bg-white"
+                    >
+                      <option value="USD">USD (US Dollar)</option>
+                      <option value="GBP">GBP (British Pound)</option>
+                      <option value="EUR">EUR (Euro)</option>
+                      <option value="CAD">CAD (Canadian Dollar)</option>
+                      <option value="AUD">AUD (Australian Dollar)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Payoneer Account Email (Payoneer-to-Payoneer)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. yourname@email.com"
+                      value={store.payoneerEmail}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerEmail: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Beneficiary / Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ABDULLAH HANJRA"
+                      value={store.payoneerAccountHolder}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerAccountHolder: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs uppercase font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Receiving Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. First Century Bank / Community Federal Savings Bank"
+                      value={store.payoneerBankName}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerBankName: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Account Number / IBAN
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 4012345678901"
+                      value={store.payoneerAccountNumber}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerAccountNumber: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Routing Number (ABA) / Sort Code / SWIFT (BIC)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 061120084"
+                      value={store.payoneerRoutingNumber}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerRoutingNumber: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Direct Payoneer Payment Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://link.payoneer.com/..."
+                      value={store.payoneerPayLink}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerPayLink: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
+                      Payoneer Buyer Instructions
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Send payment to our Payoneer account above and share your receipt with your Order # via WhatsApp or Email."
+                      value={store.payoneerInstructions}
+                      onChange={(e) =>
+                        setStore({ ...store, payoneerInstructions: e.target.value })
+                      }
+                      className="w-full p-2.5 border border-neutral-300 focus:outline-none focus:border-black text-xs"
+                    />
+                  </div>
+
+                  {/* Live Payoneer Preview Card */}
+                  <div className="sm:col-span-2 pt-3 border-t border-neutral-200">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
+                      Payoneer Checkout Preview (Only filled fields are shown to buyers):
+                    </span>
+                    <div className="bg-neutral-50 border border-neutral-200 p-4 space-y-2 text-xs rounded-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold uppercase tracking-wider text-black text-[11px]">
+                          {store.payoneerTitle || 'Payoneer (International Payment)'} ({store.payoneerCurrency || 'USD'})
+                        </span>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-neutral-200 text-neutral-800 rounded">
+                          Buyer Screen
+                        </span>
+                      </div>
+                      <div className="bg-white p-3 border border-neutral-200 font-mono text-[11px] space-y-1 text-black">
+                        {store.payoneerEmail && (
+                          <div className="flex justify-between py-0.5 border-b border-neutral-100">
+                            <span className="text-neutral-500 font-sans">Payoneer Email:</span>
+                            <span className="font-bold">{store.payoneerEmail}</span>
+                          </div>
+                        )}
+                        {store.payoneerAccountHolder && (
+                          <div className="flex justify-between py-0.5 border-b border-neutral-100">
+                            <span className="text-neutral-500 font-sans">Account Holder:</span>
+                            <span className="font-bold uppercase">{store.payoneerAccountHolder}</span>
+                          </div>
+                        )}
+                        {store.payoneerBankName && (
+                          <div className="flex justify-between py-0.5 border-b border-neutral-100">
+                            <span className="text-neutral-500 font-sans">Receiving Bank:</span>
+                            <span className="font-bold">{store.payoneerBankName}</span>
+                          </div>
+                        )}
+                        {store.payoneerAccountNumber && (
+                          <div className="flex justify-between py-0.5 border-b border-neutral-100">
+                            <span className="text-neutral-500 font-sans">Account #:</span>
+                            <span className="font-bold">{store.payoneerAccountNumber}</span>
+                          </div>
+                        )}
+                        {store.payoneerRoutingNumber && (
+                          <div className="flex justify-between py-0.5 border-b border-neutral-100">
+                            <span className="text-neutral-500 font-sans">Routing / SWIFT:</span>
+                            <span className="font-bold">{store.payoneerRoutingNumber}</span>
+                          </div>
+                        )}
+                        {!store.payoneerEmail && !store.payoneerAccountNumber && (
+                          <p className="font-sans text-neutral-500 italic">
+                            Fill in your Payoneer Email or Receiving Bank details above and click Save to display them live on Checkout.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Other International Transfer (PayPal / Wise) */}
+              <div className="p-5 border border-neutral-200 bg-white space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <Globe className="w-4 h-4 text-black" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-black">
+                        4. Other International Transfer (PayPal / Wise)
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Optional extra option for PayPal, Wise, or SWIFT transfers. Toggle Disabled if you only want buyers to pay via Payoneer.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -1548,14 +1786,14 @@ export function SettingsForm({
                 </div>
               </div>
 
-              {/* 4. Credit / Debit Card (Visa / Mastercard) */}
+              {/* 5. Credit / Debit Card (Visa / Mastercard) */}
               <div className="p-5 border border-neutral-200 bg-white space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
                       <CreditCard className="w-4 h-4 text-black" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-black">
-                        4. Credit / Debit Card (Visa / Mastercard)
+                        5. Credit / Debit Card (Visa / Mastercard)
                       </h3>
                     </div>
                     <p className="text-[11px] text-neutral-500">

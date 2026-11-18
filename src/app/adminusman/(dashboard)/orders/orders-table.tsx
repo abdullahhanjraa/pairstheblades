@@ -27,6 +27,7 @@ import {
   Check,
   Edit2,
   Save,
+  Mail,
 } from 'lucide-react';
 import { AdminToastContainer, ToastMessage } from '@/components/admin/admin-toast';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
@@ -831,21 +832,47 @@ export function OrdersTable({ initialOrders, store }: OrdersTableProps) {
                         </button>
 
                         {/* WhatsApp Direct Notification */}
-                        <a
-                          href={`https://wa.me/${order.customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                            `Assalam-o-Alaikum ${order.customerName}, this is ${store?.name || 'Pairs Knife & Sword Co.'} regarding your order #${order.orderNumber}. Your order is ${
-                              isFulfilled
-                                ? `dispatched via ${order.trackingCompany} (Tracking #${order.trackingNumber})`
-                                : 'currently being packed for nationwide delivery'
-                            }.`
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors"
-                          title="WhatsApp Customer"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
+                        {(() => {
+                          const directWaMatch = order.notes?.match(/Direct WhatsApp:\s*([^|]+)/i);
+                          const waTarget = (directWaMatch ? directWaMatch[1] : order.customerPhone || '').replace(/\D/g, '');
+                          const realEmail =
+                            order.customerEmail &&
+                            !order.customerEmail.toLowerCase().endsWith('@pairs.pk')
+                              ? order.customerEmail
+                              : null;
+                          return (
+                            <>
+                              <a
+                                href={`https://wa.me/${waTarget}?text=${encodeURIComponent(
+                                  `Assalam-o-Alaikum ${order.customerName}, this is ${store?.name || 'Pairs Knife & Sword Co.'} regarding your order #${order.orderNumber}. Your order is ${
+                                    isFulfilled
+                                      ? `dispatched via ${order.trackingCompany} (Tracking #${order.trackingNumber})`
+                                      : 'received and being processed'
+                                  }.`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors"
+                                title="WhatsApp Customer"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                              </a>
+                              {realEmail && (
+                                <a
+                                  href={`mailto:${realEmail}?subject=${encodeURIComponent(
+                                    `${store?.name || 'Pairs Blades'} — Order #${order.orderNumber}`
+                                  )}&body=${encodeURIComponent(
+                                    `Hi ${order.customerName},\n\nThank you for your order #${order.orderNumber} (${formatPKR(order.totalPrice)}).`
+                                  )}`}
+                                  className="p-1.5 text-neutral-600 hover:text-black hover:bg-neutral-100 rounded transition-colors"
+                                  title={`Email ${realEmail}`}
+                                >
+                                  <Mail className="w-4 h-4" />
+                                </a>
+                              )}
+                            </>
+                          );
+                        })()}
 
                         {/* Fulfill Action */}
                         {!isFulfilled && !isCancelled && (
@@ -1063,21 +1090,36 @@ export function OrdersTable({ initialOrders, store }: OrdersTableProps) {
                 <p className="font-bold text-black">{inspectOrder.customerName}</p>
                 <p className="text-neutral-600 font-mono">{inspectOrder.customerPhone}</p>
                 <p className="text-neutral-500">{inspectOrder.customerEmail}</p>
-                {inspectOrder.customerPhone && (
-                  <a
-                    href={`https://wa.me/${inspectOrder.customerPhone.replace(/\D/g, '')}?text=Salam%20${encodeURIComponent(
-                      inspectOrder.customerName
-                    )},%20this%20is%20PAIRS%20CLOTHING%20regarding%20your%20Order%20%23${
-                      inspectOrder.orderNumber
-                    }`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-700 hover:underline mt-2"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>Open WhatsApp Chat</span>
-                  </a>
-                )}
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  {inspectOrder.customerPhone && (
+                    <a
+                      href={`https://wa.me/${(
+                        inspectOrder.notes?.match(/Direct WhatsApp:\s*([^|]+)/i)?.[1] ||
+                        inspectOrder.customerPhone
+                      ).replace(/\D/g, '')}?text=${encodeURIComponent(
+                        `Salam ${inspectOrder.customerName}, this is ${store?.name || 'Pairs Blades'} regarding your Order #${inspectOrder.orderNumber}`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Open WhatsApp Chat</span>
+                    </a>
+                  )}
+                  {inspectOrder.customerEmail &&
+                    !inspectOrder.customerEmail.toLowerCase().endsWith('@pairs.pk') && (
+                      <a
+                        href={`mailto:${inspectOrder.customerEmail}?subject=${encodeURIComponent(
+                          `${store?.name || 'Pairs Blades'} — Order #${inspectOrder.orderNumber}`
+                        )}`}
+                        className="inline-flex items-center space-x-1 text-[11px] font-bold text-black hover:underline"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Email Buyer</span>
+                      </a>
+                    )}
+                </div>
               </div>
 
               <div>
@@ -1553,6 +1595,10 @@ export function OrdersTable({ initialOrders, store }: OrdersTableProps) {
                         ? 'CASH TO COLLECT (COD)'
                         : slipData.paymentMethod === 'BANK_TRANSFER'
                         ? 'DIRECT BANK TRANSFER'
+                        : slipData.paymentMethod === 'PAYONEER'
+                        ? 'PAYONEER (INTERNATIONAL)'
+                        : slipData.paymentMethod === 'INTERNATIONAL_TRANSFER'
+                        ? 'INTERNATIONAL TRANSFER'
                         : 'CARD PAYMENT (ONLINE)'}
                     </span>
                     <span className="text-2xl font-black text-black font-mono">

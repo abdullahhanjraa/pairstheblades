@@ -35,10 +35,15 @@ export default async function OrderSuccessPage({
     }
   }
 
-  const supportPhoneDigits = (store?.supportPhone || '+92 300 1234567').replace(/\D/g, '');
+  const supportPhoneDigits = (
+    store?.whatsappNumber ||
+    store?.supportPhone ||
+    '+92 300 1234567'
+  ).replace(/\D/g, '');
   const cleanWhatsAppPhone = supportPhoneDigits.startsWith('03')
     ? `92${supportPhoneDigits.slice(1)}`
     : supportPhoneDigits;
+  const supportEmail = store?.supportEmail || 'support@pairstheblades.com';
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-left">
@@ -91,8 +96,10 @@ export default async function OrderSuccessPage({
                 ? 'Cash on Delivery (Nationwide)'
                 : order?.paymentMethod === 'BANK_TRANSFER'
                 ? 'Direct Bank Transfer (Raast / IBAN)'
+                : order?.paymentMethod === 'PAYONEER'
+                ? store?.payoneerTitle || 'Payoneer (International Payment)'
                 : order?.paymentMethod === 'INTERNATIONAL_TRANSFER'
-                ? store?.internationalTitle || 'International Transfer (Payoneer / PayPal / Wise)'
+                ? store?.internationalTitle || 'International Transfer (PayPal / Wise)'
                 : 'Credit / Debit Card (Online)'}
             </p>
             <p className="text-neutral-600">
@@ -168,6 +175,121 @@ export default async function OrderSuccessPage({
               >
                 Send Receipt via WhatsApp
               </a>
+            </div>
+          </div>
+        )}
+
+        {/* Payoneer Payment Instructions Box */}
+        {order?.paymentMethod === 'PAYONEER' && (
+          <div className="bg-amber-50/80 border border-amber-200 p-5 rounded-xs space-y-3 text-xs">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+              <h3 className="font-bold uppercase tracking-wider text-black">
+                {store?.payoneerTitle || 'Payoneer Payment Instructions'}
+              </h3>
+            </div>
+            <p className="text-neutral-700 leading-relaxed font-light">
+              Please complete payment for Order{' '}
+              <strong className="text-black font-extrabold">#{order.orderNumber}</strong> (
+              <strong className="text-black font-extrabold">{formatPKR(order.totalPrice)}</strong>)
+              using our official Payoneer details below:
+            </p>
+
+            {store?.payoneerEmail?.trim() ||
+            store?.payoneerAccountNumber?.trim() ||
+            store?.payoneerBankName?.trim() ? (
+              <div className="bg-white p-3.5 border border-amber-200 font-mono text-xs space-y-2">
+                {store?.payoneerEmail?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Payoneer Email (Payoneer-to-Payoneer):
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">{store.payoneerEmail}</span>
+                  </p>
+                )}
+                {store?.payoneerAccountHolder?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Beneficiary / Account Holder:
+                    </span>{' '}
+                    <span className="font-bold text-black uppercase">
+                      {store.payoneerAccountHolder}
+                    </span>
+                  </p>
+                )}
+                {store?.payoneerBankName?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Receiving Bank ({store?.payoneerCurrency || 'USD'}):
+                    </span>{' '}
+                    <span className="font-bold text-black">{store.payoneerBankName}</span>
+                  </p>
+                )}
+                {store?.payoneerAccountNumber?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Account Number / IBAN:
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">
+                      {store.payoneerAccountNumber}
+                    </span>
+                  </p>
+                )}
+                {store?.payoneerRoutingNumber?.trim() && (
+                  <p>
+                    <span className="text-neutral-400 font-sans uppercase font-bold text-[10px] block">
+                      Routing Number (ABA) / SWIFT / BIC:
+                    </span>{' '}
+                    <span className="font-bold text-black break-all">
+                      {store.payoneerRoutingNumber}
+                    </span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white p-3.5 border border-amber-200 text-xs text-neutral-700">
+                Our team will send your Payoneer invoice directly to the Email / WhatsApp contact you entered at checkout, or you can message us right now below.
+              </div>
+            )}
+
+            {/^https?:\/\//i.test(store?.payoneerPayLink?.trim() || '') && (
+              <a
+                href={store.payoneerPayLink.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-4 py-2 bg-black hover:bg-neutral-800 text-white font-bold uppercase tracking-wider text-[11px] transition-colors"
+              >
+                Open Payoneer Payment Link
+              </a>
+            )}
+
+            <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <p className="text-[11px] text-neutral-600">
+                {store?.payoneerInstructions ||
+                  'Send payment to our Payoneer account above and share your receipt with your Order # via WhatsApp or Email.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <a
+                  href={`https://wa.me/${cleanWhatsAppPhone}?text=${encodeURIComponent(
+                    `Hi ${store?.name || 'Pairs Knife & Sword Co.'}! Here is my Payoneer payment receipt for Order #${order.orderNumber} (${formatPKR(order.totalPrice)}).`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider text-[11px] transition-colors whitespace-nowrap shadow-xs"
+                >
+                  WhatsApp Receipt
+                </a>
+                <a
+                  href={`mailto:${supportEmail}?subject=${encodeURIComponent(
+                    `Payoneer Payment Receipt — Order #${order.orderNumber}`
+                  )}&body=${encodeURIComponent(
+                    `Hi ${store?.name || 'Store Team'},\n\nI placed Order #${order.orderNumber} (${formatPKR(order.totalPrice)}) via Payoneer. Please find my payment details attached.`
+                  )}`}
+                  className="px-3.5 py-2 bg-white border border-neutral-300 hover:border-black text-black font-bold uppercase tracking-wider text-[11px] transition-colors whitespace-nowrap"
+                >
+                  Email Receipt
+                </a>
+              </div>
             </div>
           </div>
         )}

@@ -65,6 +65,7 @@ export async function POST(req: Request) {
       paymentMethod,
       discountCode,
       notes,
+      directPaymentContact,
       items,
       idempotencyKey,
     } = body;
@@ -82,9 +83,28 @@ export async function POST(req: Request) {
     const cleanCity = sanitize(city) || 'Lahore';
     const cleanProvince = sanitize(province) || 'Punjab';
     const cleanPostalCode = sanitize(postalCode);
-    const cleanNotes = sanitize(notes);
+    const cleanDirectContact = sanitize(directPaymentContact);
     const cleanPhone = normalizePhone(customerPhone);
-    const cleanEmail = customerEmail ? sanitize(customerEmail) : `${cleanPhone.replace(/\D/g, '')}@pairs.pk`;
+
+    // If shopper provided an Email in the direct payment contact field, save it as their real customerEmail
+    const directContactIsEmail = Boolean(cleanDirectContact && cleanDirectContact.includes('@'));
+    const rawEmail = customerEmail ? sanitize(customerEmail) : '';
+    const cleanEmail =
+      rawEmail ||
+      (directContactIsEmail ? cleanDirectContact : `${cleanPhone.replace(/\D/g, '')}@pairs.pk`);
+
+    // Combine optional buyer notes with direct international contact (WhatsApp or Email) so it appears everywhere
+    const noteParts: string[] = [];
+    if (cleanDirectContact) {
+      noteParts.push(
+        directContactIsEmail
+          ? `Direct Email: ${cleanDirectContact}`
+          : `Direct WhatsApp: ${normalizePhone(cleanDirectContact)}`
+      );
+    }
+    const baseNote = sanitize(notes);
+    if (baseNote) noteParts.push(baseNote);
+    const cleanNotes = noteParts.join(' | ');
 
     if (!cleanName || cleanName.length < 2) {
       return NextResponse.json({ error: 'Please enter a valid customer name' }, { status: 400 });
@@ -416,6 +436,7 @@ export async function POST(req: Request) {
       const alertOrderPayload = {
         orderNumber: order.orderNumber,
         customerName: order.customerName,
+        customerEmail: order.customerEmail,
         customerPhone: order.customerPhone,
         shippingAddress: order.shippingAddress,
         city: order.city,

@@ -20,6 +20,8 @@ import {
   Check,
   Building2,
   Globe,
+  Mail,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
@@ -36,6 +38,7 @@ export default function CheckoutPage() {
     province: 'Punjab',
     postalCode: '',
     paymentMethod: 'COD',
+    directPaymentContact: '',
     notes: '',
   });
 
@@ -59,7 +62,15 @@ export default function CheckoutPage() {
   }, [items, subtotal]);
 
   const [copiedField, setCopiedField] = useState<
-    'iban' | 'account' | 'payoneer' | 'paypal' | 'wise' | null
+    | 'iban'
+    | 'account'
+    | 'payoneerEmail'
+    | 'payoneerAccount'
+    | 'payoneerRouting'
+    | 'payoneer'
+    | 'paypal'
+    | 'wise'
+    | null
   >(null);
 
   const [storeSettings, setStoreSettings] = useState({
@@ -76,14 +87,27 @@ export default function CheckoutPage() {
     bankBranch: 'Main Boulevard, Gujranwala',
     bankInstructions:
       'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to support.',
+    enablePayoneer: true,
+    payoneerTitle: 'Payoneer (International Payment)',
+    payoneerEmail: '',
+    payoneerAccountHolder: '',
+    payoneerBankName: '',
+    payoneerAccountNumber: '',
+    payoneerRoutingNumber: '',
+    payoneerCurrency: 'USD',
+    payoneerPayLink: '',
+    payoneerInstructions:
+      'Send payment to our Payoneer account above and share your receipt with your Order # via WhatsApp or Email.',
     enableInternationalTransfer: true,
-    internationalTitle: 'International Transfer (Payoneer / PayPal / Wise)',
+    internationalTitle: 'International Transfer (PayPal / Wise)',
     payoneerAccount: '',
     paypalAccount: '',
     wiseAccount: '',
     internationalInstructions:
-      'Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp.',
+      'Transfer your order total via PayPal or Wise and share your payment receipt with Order # via WhatsApp or Email.',
     supportPhone: '+92 300 1234567',
+    whatsappNumber: '+92 300 1234567',
+    supportEmail: 'support@pairstheblades.com',
     cardGatewayName: 'Visa / Mastercard Secure Gateway',
     cardInstructions: 'Instant checkout via 3D Secure card processing sandbox.',
     cardMode: 'SANDBOX',
@@ -91,7 +115,15 @@ export default function CheckoutPage() {
 
   const handleCopy = (
     text: string,
-    field: 'iban' | 'account' | 'payoneer' | 'paypal' | 'wise'
+    field:
+      | 'iban'
+      | 'account'
+      | 'payoneerEmail'
+      | 'payoneerAccount'
+      | 'payoneerRouting'
+      | 'payoneer'
+      | 'paypal'
+      | 'wise'
   ) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
@@ -122,19 +154,33 @@ export default function CheckoutPage() {
             bankInstructions:
               s.bankInstructions ||
               'Please transfer total amount via Raast / Online Banking and WhatsApp receipt with Order # to support.',
+            enablePayoneer: s.enablePayoneer !== undefined ? Boolean(s.enablePayoneer) : true,
+            payoneerTitle: s.payoneerTitle || 'Payoneer (International Payment)',
+            payoneerEmail: s.payoneerEmail || '',
+            payoneerAccountHolder: s.payoneerAccountHolder || '',
+            payoneerBankName: s.payoneerBankName || '',
+            payoneerAccountNumber: s.payoneerAccountNumber || '',
+            payoneerRoutingNumber: s.payoneerRoutingNumber || '',
+            payoneerCurrency: s.payoneerCurrency || 'USD',
+            payoneerPayLink: s.payoneerPayLink || '',
+            payoneerInstructions:
+              s.payoneerInstructions ||
+              'Send payment to our Payoneer account above and share your receipt with your Order # via WhatsApp or Email.',
             enableInternationalTransfer:
               s.enableInternationalTransfer !== undefined
                 ? Boolean(s.enableInternationalTransfer)
                 : true,
             internationalTitle:
-              s.internationalTitle || 'International Transfer (Payoneer / PayPal / Wise)',
+              s.internationalTitle || 'International Transfer (PayPal / Wise)',
             payoneerAccount: s.payoneerAccount || '',
             paypalAccount: s.paypalAccount || '',
             wiseAccount: s.wiseAccount || '',
             internationalInstructions:
               s.internationalInstructions ||
-              'Transfer your order total via Payoneer, PayPal, or Wise and share your payment receipt with Order # on WhatsApp.',
+              'Transfer your order total via PayPal or Wise and share your payment receipt with Order # via WhatsApp or Email.',
             supportPhone: s.supportPhone || '+92 300 1234567',
+            whatsappNumber: s.whatsappNumber || s.supportPhone || '+92 300 1234567',
+            supportEmail: s.supportEmail || 'support@pairstheblades.com',
             cardGatewayName: s.cardGatewayName || 'Visa / Mastercard Secure Gateway',
             cardInstructions:
               s.cardInstructions || 'Instant checkout via 3D Secure card processing sandbox.',
@@ -145,6 +191,8 @@ export default function CheckoutPage() {
           if (s.enableCod === false) {
             if (s.enableBankTransfer) {
               setFormData((prev) => ({ ...prev, paymentMethod: 'BANK_TRANSFER' }));
+            } else if (s.enablePayoneer) {
+              setFormData((prev) => ({ ...prev, paymentMethod: 'PAYONEER' }));
             } else if (s.enableInternationalTransfer) {
               setFormData((prev) => ({ ...prev, paymentMethod: 'INTERNATIONAL_TRANSFER' }));
             } else if (s.enableCard) {
@@ -226,6 +274,22 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (
+      formData.paymentMethod === 'PAYONEER' ||
+      formData.paymentMethod === 'INTERNATIONAL_TRANSFER'
+    ) {
+      const contactVal = formData.directPaymentContact.trim();
+      const contactDigits = contactVal.replace(/\D/g, '');
+      const isValidEmail = contactVal.includes('@') && contactVal.includes('.');
+      const isValidPhone = contactDigits.length >= 7 && contactDigits.length <= 15;
+      if (!contactVal || (!isValidEmail && !isValidPhone)) {
+        setCheckoutError(
+          'Please enter your Email address or WhatsApp number inside the international payment box so we can connect with you directly.'
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -234,7 +298,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: `${formData.firstName} ${formData.lastName}`.trim(),
-          customerEmail: formData.email || `${formData.phone.replace(/[^0-9]/g, '')}@pairs.pk`,
+          customerEmail: formData.email || undefined,
           customerPhone: formData.phone,
           shippingAddress: formData.address,
           city: formData.city,
@@ -244,6 +308,11 @@ export default function CheckoutPage() {
           shippingPrice: shippingFee,
           totalPrice: grandTotal,
           paymentMethod: formData.paymentMethod,
+          directPaymentContact:
+            formData.paymentMethod === 'PAYONEER' ||
+            formData.paymentMethod === 'INTERNATIONAL_TRANSFER'
+              ? formData.directPaymentContact.trim()
+              : undefined,
           discountCode: discountAmount > 0 ? discountCode : undefined,
           idempotencyKey: `${formData.phone.replace(/\D/g, '')}_${items.map((i) => `${i.variantId || i.productId}:${i.quantity}`).join('_')}`,
           analyticsSessionId: getOrCreateSessionId(),
@@ -637,7 +706,253 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* International Transfer (Payoneer / PayPal / Wise) */}
+                  {/* Dedicated Payoneer (International Payment) */}
+                  {storeSettings.enablePayoneer && (
+                    <div
+                      className={`border transition-colors ${
+                        formData.paymentMethod === 'PAYONEER'
+                          ? 'border-black bg-neutral-50'
+                          : 'border-neutral-200 hover:border-neutral-300'
+                      }`}
+                    >
+                      <label className="flex items-start p-4 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="PAYONEER"
+                          checked={formData.paymentMethod === 'PAYONEER'}
+                          onChange={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              paymentMethod: 'PAYONEER',
+                              directPaymentContact:
+                                prev.directPaymentContact || prev.email || prev.phone,
+                            }))
+                          }
+                          className="mt-0.5 text-black focus:ring-black"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center space-x-2">
+                            <Globe className="w-4 h-4 text-black" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-black">
+                              {storeSettings.payoneerTitle || 'Payoneer (International Payment)'}
+                            </span>
+                            {storeSettings.payoneerCurrency && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-neutral-200 text-neutral-700 rounded uppercase">
+                                {storeSettings.payoneerCurrency}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">
+                            Pay easily via Payoneer or international bank transfer directly to our Payoneer receiving account.
+                          </p>
+                        </div>
+                      </label>
+
+                      {formData.paymentMethod === 'PAYONEER' && (
+                        <div className="mx-4 mb-4 p-4 bg-white border border-neutral-300 rounded-xs space-y-3 animate-in fade-in">
+                          {storeSettings.payoneerEmail.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  Payoneer Email (Payoneer-to-Payoneer)
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.payoneerEmail}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopy(storeSettings.payoneerEmail, 'payoneerEmail')
+                                }
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'payoneerEmail' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {storeSettings.payoneerAccountHolder.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                                Beneficiary / Account Holder
+                              </span>
+                              <span className="text-xs font-bold text-black uppercase text-right">
+                                {storeSettings.payoneerAccountHolder}
+                              </span>
+                            </div>
+                          )}
+
+                          {storeSettings.payoneerBankName.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                                Receiving Bank ({storeSettings.payoneerCurrency || 'USD'})
+                              </span>
+                              <span className="text-xs font-bold text-black text-right">
+                                {storeSettings.payoneerBankName}
+                              </span>
+                            </div>
+                          )}
+
+                          {storeSettings.payoneerAccountNumber.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  Account Number / IBAN
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.payoneerAccountNumber}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopy(storeSettings.payoneerAccountNumber, 'payoneerAccount')
+                                }
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'payoneerAccount' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {storeSettings.payoneerRoutingNumber.trim() && (
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                  Routing Number (ABA) / SWIFT / BIC
+                                </span>
+                                <span className="text-xs font-mono font-bold text-black break-all">
+                                  {storeSettings.payoneerRoutingNumber}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopy(storeSettings.payoneerRoutingNumber, 'payoneerRouting')
+                                }
+                                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-neutral-300 hover:border-black flex items-center space-x-1 cursor-pointer transition-colors shrink-0"
+                              >
+                                {copiedField === 'payoneerRouting' ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-neutral-500" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {/^https?:\/\//i.test(storeSettings.payoneerPayLink.trim()) && (
+                            <a
+                              href={storeSettings.payoneerPayLink.trim()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center space-x-1.5 w-full py-2 px-3 bg-neutral-900 hover:bg-black text-white text-[11px] font-bold uppercase tracking-wider transition-colors"
+                            >
+                              <span>Open Payoneer Payment Link</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+
+                          {!storeSettings.payoneerEmail.trim() &&
+                            !storeSettings.payoneerAccountNumber.trim() &&
+                            !storeSettings.payoneerPayLink.trim() && (
+                              <div className="text-xs text-neutral-700 bg-neutral-50 p-3 border border-neutral-200">
+                                Enter your Email or WhatsApp below and complete your order — we will send you our Payoneer invoice / receiving details directly.
+                              </div>
+                            )}
+
+                          {/* Direct Buyer Contact (Email or WhatsApp) */}
+                          <div className="pt-2 border-t border-neutral-200 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <label className="block text-[11px] font-bold uppercase tracking-wider text-black">
+                                Your Email or WhatsApp Number (for direct contact) *
+                              </label>
+                              {(formData.email || formData.phone) &&
+                                formData.directPaymentContact !==
+                                  (formData.email || formData.phone) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        directPaymentContact: prev.email || prev.phone,
+                                      }))
+                                    }
+                                    className="text-[10px] font-semibold text-neutral-500 hover:text-black underline cursor-pointer"
+                                  >
+                                    Use contact above
+                                  </button>
+                                )}
+                            </div>
+                            <input
+                              type="text"
+                              required={formData.paymentMethod === 'PAYONEER'}
+                              placeholder="e.g. +44 7911 123456 or buyer@email.com"
+                              value={formData.directPaymentContact}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  directPaymentContact: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-neutral-300 text-xs font-mono text-black placeholder-neutral-400 focus:outline-none focus:border-black"
+                            />
+                            <p className="text-[11px] text-neutral-500">
+                              Add your WhatsApp number (with country code) or Email so we can connect with you directly to send a Payoneer request or verify your payment receipt.
+                            </p>
+                          </div>
+
+                          <div className="pt-1 text-[11px] text-neutral-600 leading-normal bg-neutral-50 p-2.5 border border-neutral-200 space-y-1.5">
+                            <p>
+                              <strong>Note:</strong> {storeSettings.payoneerInstructions}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px]">
+                              <span className="text-neutral-500">
+                                Direct WhatsApp:{' '}
+                                <strong className="text-black font-mono">
+                                  {storeSettings.whatsappNumber}
+                                </strong>
+                              </span>
+                              <span className="text-neutral-500 inline-flex items-center space-x-1">
+                                <Mail className="w-3 h-3" />
+                                <strong className="text-black">{storeSettings.supportEmail}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Other International Transfer (PayPal / Wise) */}
                   {storeSettings.enableInternationalTransfer && (
                     <div
                       className={`border transition-colors ${
@@ -653,10 +968,12 @@ export default function CheckoutPage() {
                           value="INTERNATIONAL_TRANSFER"
                           checked={formData.paymentMethod === 'INTERNATIONAL_TRANSFER'}
                           onChange={() =>
-                            setFormData({
-                              ...formData,
+                            setFormData((prev) => ({
+                              ...prev,
                               paymentMethod: 'INTERNATIONAL_TRANSFER',
-                            })
+                              directPaymentContact:
+                                prev.directPaymentContact || prev.email || prev.phone,
+                            }))
                           }
                           className="mt-0.5 text-black focus:ring-black"
                         />
@@ -665,11 +982,11 @@ export default function CheckoutPage() {
                             <Globe className="w-4 h-4 text-black" />
                             <span className="text-xs font-bold uppercase tracking-wider text-black">
                               {storeSettings.internationalTitle ||
-                                'International Transfer (Payoneer / PayPal / Wise)'}
+                                'International Transfer (PayPal / Wise)'}
                             </span>
                           </div>
                           <p className="text-[11px] text-neutral-500 mt-0.5">
-                            Pay internationally via Payoneer, PayPal, Wise, or SWIFT and share your receipt via WhatsApp.
+                            Pay internationally via PayPal, Wise, or SWIFT and share your receipt via WhatsApp or Email.
                           </p>
                         </div>
                       </label>
@@ -772,12 +1089,67 @@ export default function CheckoutPage() {
                             !storeSettings.paypalAccount.trim() &&
                             !storeSettings.wiseAccount.trim() && (
                               <div className="text-xs text-neutral-700 bg-neutral-50 p-3 border border-neutral-200">
-                                Place your order now and our team will share our verified Payoneer / PayPal / Wise payment details directly on WhatsApp ({storeSettings.supportPhone}).
+                                Enter your Email or WhatsApp below and place your order — our team will send verified international payment details directly to you.
                               </div>
                             )}
 
-                          <div className="pt-1 text-[11px] text-neutral-600 leading-normal bg-neutral-50 p-2.5 border border-neutral-200">
-                            <strong>Note:</strong> {storeSettings.internationalInstructions}
+                          {/* Direct Buyer Contact (Email or WhatsApp) */}
+                          <div className="pt-2 border-t border-neutral-200 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <label className="block text-[11px] font-bold uppercase tracking-wider text-black">
+                                Your Email or WhatsApp Number (for direct contact) *
+                              </label>
+                              {(formData.email || formData.phone) &&
+                                formData.directPaymentContact !==
+                                  (formData.email || formData.phone) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        directPaymentContact: prev.email || prev.phone,
+                                      }))
+                                    }
+                                    className="text-[10px] font-semibold text-neutral-500 hover:text-black underline cursor-pointer"
+                                  >
+                                    Use contact above
+                                  </button>
+                                )}
+                            </div>
+                            <input
+                              type="text"
+                              required={formData.paymentMethod === 'INTERNATIONAL_TRANSFER'}
+                              placeholder="e.g. +44 7911 123456 or buyer@email.com"
+                              value={formData.directPaymentContact}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  directPaymentContact: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border border-neutral-300 text-xs font-mono text-black placeholder-neutral-400 focus:outline-none focus:border-black"
+                            />
+                            <p className="text-[11px] text-neutral-500">
+                              Add your WhatsApp number (with country code) or Email so we can connect with you directly for payment &amp; tracking updates.
+                            </p>
+                          </div>
+
+                          <div className="pt-1 text-[11px] text-neutral-600 leading-normal bg-neutral-50 p-2.5 border border-neutral-200 space-y-1.5">
+                            <p>
+                              <strong>Note:</strong> {storeSettings.internationalInstructions}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px]">
+                              <span className="text-neutral-500">
+                                Direct WhatsApp:{' '}
+                                <strong className="text-black font-mono">
+                                  {storeSettings.whatsappNumber}
+                                </strong>
+                              </span>
+                              <span className="text-neutral-500 inline-flex items-center space-x-1">
+                                <Mail className="w-3 h-3" />
+                                <strong className="text-black">{storeSettings.supportEmail}</strong>
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -853,6 +1225,7 @@ export default function CheckoutPage() {
                   {!storeSettings.enableCod &&
                     !storeSettings.enableCard &&
                     !storeSettings.enableBankTransfer &&
+                    !storeSettings.enablePayoneer &&
                     !storeSettings.enableInternationalTransfer && (
                       <div className="p-3 bg-red-50 text-red-700 text-xs">
                         No payment gateway currently active. Please contact merchant admin.
